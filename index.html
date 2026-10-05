@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>还没来得及说的那句“我想要”</title>
+<link rel="stylesheet" href="gift.css?v=31">
+</head>
+<body>
+<div id="loading"><span class="loading-mark">拾光</span><p>正在打开那天下午…</p></div>
+<main id="game" aria-label="汉堡店三维游戏场景"></main>
+<div class="grain"></div>
+<div class="film-matte" aria-hidden="true"></div>
+<section id="prologue" class="prologue" aria-labelledby="prologueTitle">
+ <div class="prologue-wash"></div><div class="prologue-rain" aria-hidden="true"></div>
+ <button id="skipPrologue" class="prologue-skip" type="button">跳过开场 <span>→</span></button>
+ <div class="prologue-wordmark">拾光 <span>A GIFT TO MY YOUNGER SELF</span></div>
+ <div class="prologue-cards" aria-live="polite">
+  <article class="prologue-card active" data-prologue-card="0"><p class="prologue-index">拾光 / 记忆档案</p><h1 id="prologueTitle">再走一次，<br><em>当时的那条路。</em></h1><p>回到一些你记得的时刻，<br>看看当年的自己，怎样在几秒钟里做出决定。</p></article>
+  <article class="prologue-card" data-prologue-card="1"><p class="prologue-index">第一幕 / 善意</p><h2>窗边的位置</h2><p>2003 年，秋。<br>雨把街声压低，口袋里只剩两块钱。</p></article>
+ </div>
+ <div class="prologue-progress" aria-hidden="true"><i class="active"></i><i></i></div>
+ <button id="enterChapters" class="prologue-enter primary" type="button" hidden>进入记忆 <span>→</span></button>
+</section>
+<header><a class="wordmark" href="./cinematic_gift.html?v=31">拾光 <span>A GIFT TO MY YOUNGER SELF</span></a><div id="toolbar" hidden><span id="modeTag">亲自游玩</span><button id="sound" aria-label="打开声音">声音 关</button><button id="pause" aria-label="暂停">暂停</button><button id="chapterMenu" hidden>章节</button><button id="restart">重新开始</button></div></header>
+<section id="intro" class="panel chapter-menu" aria-labelledby="menuTitle" hidden>
+ <div class="menu-kicker"><span>拾光 / 记忆档案</span><i></i><span>CHAPTER SELECT</span></div>
+ <h1 id="menuTitle">有些事没有变成故事。<br><span>它们只是一直留在原地。</span></h1>
+ <p class="intro-copy">一场雨、两枚硬币、一张没有被兑换的餐券。<br>你要重走的，不是结局，是当时做出选择的那几秒。</p>
+ <div class="intro-rule"></div>
+ <div class="chapter-list" aria-label="章节选择">
+   <article class="menu-chapter available" aria-label="第一幕，窗边的位置">
+     <div class="chapter-number">01</div>
+     <div class="chapter-copy"><p class="chapter-meta">MEMORY 01 · 主题 / 善意</p><h2>窗边的位置</h2><p>口袋里只有两块钱，雨落在玻璃另一边。</p></div>
+     <button id="demo" class="chapter-launch primary">进入第一幕 <span>→</span><small>自动完整体验 · 约 3 分钟</small></button>
+   </article>
+   <article class="menu-chapter upcoming" aria-label="第二幕，尚未开放">
+     <div class="chapter-number">02</div>
+     <div class="chapter-copy"><p class="chapter-meta">MEMORY 02 · 主题 / 勇气</p><h2>第二幕</h2><p>有些话，总要等到你愿意听见自己，才说得出口。</p></div>
+     <button id="act2" class="chapter-launch secondary" type="button">查看第二幕 <span>→</span><small>尚未开放</small></button>
+   </article>
+ </div>
+ <p class="small menu-note">第一幕将以电影化方式完整播放；你可以随时暂停。</p>
+ <!-- Kept for the existing game controller; the chapter menu deliberately starts Act I in guided mode. -->
+ <button id="play" hidden aria-hidden="true" tabindex="-1">亲自游玩</button>
+</section>
+<section id="hud" hidden aria-live="polite"><div id="chapter"></div><h2 id="objective"></h2><p id="instruction"></p><div id="progress" aria-label="故事进度"></div></section>
+<div id="role" hidden><span id="roleDot"></span><span id="roleName"></span></div>
+<div id="targets"></div><div id="hover" hidden></div>
+<section id="subtitle" hidden aria-live="polite"><div id="speaker"></div><p id="line"></p><button id="readOn" hidden aria-label="读完了，继续">读完了 <span>空格 ↵</span></button></section>
+<div id="toast" role="status" hidden></div>
+<footer id="help" hidden><span><kbd>点击</kbd> 地面行走 / 物件互动</span><span><kbd>WASD</kbd> 移动</span><span><kbd>E</kbd> 当前动作</span><span><kbd>Esc</kbd> 暂停</span></footer>
+<div id="inventory" hidden><span>手中</span><strong id="heldName">一张儿童套餐券</strong></div>
+<section id="pausePanel" class="modal" hidden><div><div class="eyebrow">时间暂时停在这里</div><h2>不用着急。</h2><p>准备好了，就回到那天下午。</p><button id="resume" class="primary">继续</button><button id="pauseRestart" class="secondary">从头开始</button></div></section>
+<section id="ending" class="act-end" hidden><div class="eyebrow">第一幕完</div><h2>窗边的位置</h2><p>雨还在下。那张券回到了该去的地方，餐盒里还冒着热气。</p><div><button id="linger" class="primary">留在这里</button><button id="chapters" class="secondary">章节</button></div></section>
+<section id="chapterPanel" class="modal" hidden><div class="chapter-sheet"><div class="eyebrow">拾光 / 记忆档案</div><h2>还留在这里的事</h2><div class="chapter-entry current"><span>01</span><div><strong>窗边的位置</strong><p>主题 / 善意</p></div><button id="again" class="secondary">重走这一幕</button></div><div class="chapter-entry pending"><span>02</span><div><strong>第二幕</strong><p>主题 / 勇气</p></div><button id="chapterAct2" class="secondary" type="button">查看</button></div><button id="backToScene" class="primary">回到窗边</button></div></section>
+<section id="chapterUnavailable" class="modal chapter-unavailable" hidden role="dialog" aria-modal="true" aria-labelledby="unavailableTitle"><div><div class="eyebrow">MEMORY 02 · 主题 / 勇气</div><h2 id="unavailableTitle">这一幕，<br>还在路上。</h2><p>它还没有准备好被重新讲述。等你愿意再走近一点，我们再见。</p><button id="closeUnavailable" class="primary" type="button">回到章节</button></div></section>
+<div id="fade"></div>
+<script src="./vendor/three-r161.js"></script><script src="./gift_navigation.js?v=31"></script><script src="./gift_world.js?v=31"></script><script src="./vendor/gltf-loader-r161.js"></script><script src="./gift_assets.js?v=31"></script><script src="./gift_game.js?v=31"></script><script src="./prologue.js?v=31"></script>
+</body></html>

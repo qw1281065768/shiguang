@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "note": "Reviewed production props: schoolbag and register enabled after real-scene visual QA. Burger and paper-cover remain disabled until articulated integration.",
+  "source": "https://developers.tripo3d.ai/en/docs/generation-text-to-model/standard",
+  "verifiedAt": "2026-10-03",
+  "assets": [
+    {
+      "id": "schoolbag",
+      "url": "assets/tripo/schoolbag.glb",
+      "kind": "prop",
+      "target": "bag",
+      "scale": 1,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "grounded": true,
+      "enabled": true,
+      "height": 0.58,
+      "generation": {
+        "prompt": "A single isolated production prop for a mature cinematic narrative game set in a modest Chinese burger diner around 2006. Natural human scale, subtly hand-painted PBR realism, soft worn edges, believable materials, restrained warm neutrals and faded brick red. No background, floor, display stand, cast shadows, labels or logos. A child's faded brick-red canvas schoolbag, 42 cm tall. Slightly sagging rectangular body, one zippered front pocket, worn piping, a small blank cream cloth name patch and visibly repaired lower seam. Two sturdy shoulder straps rest against the back, carry handle lies down. Cloth has a soft weave and discoloration from use, metal zip pull catches light. Closed bag, upright, bottom flat.",
+        "negative_prompt": "cartoon, toy, chibi, cute face, oversized proportions, neon, plastic shine, baked lighting, environment, display base, floating pieces, text, logos, duplicate objects",
+        "model": "v3.1-20260211",
+        "texture": true,
+        "pbr": true,
+        "texture_quality": "detailed",
+        "geometry_quality": "standard",
+        "face_limit": 30000,
+        "auto_size": true,
+        "model_seed": 4101,
+        "texture_seed": 4101
+      }
+    },
+    {
+      "id": "register",
+      "url": "assets/tripo/register.glb",
+      "kind": "prop",
+      "target": "register",
+      "scale": 1,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "grounded": true,
+      "enabled": true,
+      "maxDimension": 0.54,
+      "generation": {
+        "prompt": "A single isolated production prop for a mature cinematic narrative game set in a modest Chinese burger diner around 2006. Natural human scale, subtly hand-painted PBR realism, soft worn edges, believable materials, restrained warm neutrals and faded brick red. No background, floor, display stand, cast shadows, labels or logos. A compact mid-2000s beige electronic cash register, 48 cm wide, sturdy rectangular cash drawer, recessed worn ivory mechanical keys, small dark-green customer display on a short integrated pedestal, roll of receipt paper at the back. Yellowed ABS case, darker finger-worn keys, metal drawer edge, faint scuffs. Screen blank; no readable text. One complete rigid object.",
+        "negative_prompt": "cartoon, toy, chibi, cute face, oversized proportions, neon, plastic shine, baked lighting, environment, display base, floating pieces, text, logos, duplicate objects",
+        "model": "v3.1-20260211",
+        "texture": true,
+        "pbr": true,
+        "texture_quality": "detailed",
+        "geometry_quality": "standard",
+        "face_limit": 30000,
+        "auto_size": true,
+        "model_seed": 4102,
+        "texture_seed": 4102
+      }
+    },
+    {
+      "id": "burger",
+      "url": "assets/tripo/burger.glb",
+      "kind": "articulated-part-needs-rig",
+      "target": "burger",
+      "scale": 1,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "grounded": true,
+      "enabled": false,
+      "maxDimension": 0.36,
+      "generation": {
+        "prompt": "A single isolated production prop for a mature cinematic narrative game set in a modest Chinese burger diner around 2006. Natural human scale, subtly hand-painted PBR realism, soft worn edges, believable materials, restrained warm neutrals and faded brick red. No background, floor, display stand, cast shadows, labels or logos. One modest freshly made hamburger, 14 cm wide: toasted sesame bun with slight asymmetry, thin beef patty, one square of melted yellow cheese, lettuce edges and ketchup. Appetizing but ordinary inexpensive fast food, soft bread pores, satin food surfaces. No tray, paper, box, plate or separate garnish. Intact and closed, suitable as a food prop to hold in one hand.",
+        "negative_prompt": "cartoon, toy, chibi, cute face, oversized proportions, neon, plastic shine, baked lighting, environment, display base, floating pieces, text, logos, duplicate objects",
+        "model": "v3.1-20260211",
+        "texture": true,
+        "pbr": true,
+        "texture_quality": "detailed",
+        "geometry_quality": "standard",
+        "face_limit": 35000,
+        "auto_size": true,
+        "model_seed": 4103,
+        "texture_seed": 4103
+      }
+    },
+    {
+      "id": "paper-cover",
+      "url": "assets/tripo/paper-cover.glb",
+      "kind": "articulated-part-needs-rig",
+      "target": "lid",
+      "scale": 1,
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "grounded": true,
+      "enabled": false,
+      "maxDimension": 0.42,
+      "generation": {
+        "prompt": "A single isolated production prop for a mature cinematic narrative game set in a modest Chinese burger diner around 2006. Natural human scale, subtly hand-painted PBR realism, soft worn edges, believable materials, restrained warm neutrals and faded brick red. No background, floor, display stand, cast shadows, labels or logos. One empty folded uncoated cream kraft-paper hamburger clamshell lid, 17 cm wide, simple creases, subtle grease translucency near one fold, thin paper edges and blank top surface. Only the upper cover, open underside, no bottom box or food. Flat rectangular hinge flap at the rear edge, physically plausible thickness. A separate rigid part for an opening animation.",
+        "negative_prompt": "cartoon, toy, chibi, cute face, oversized proportions, neon, plastic shine, baked lighting, environment, display base, floating pieces, text, logos, duplicate objects",
+        "model": "v3.1-20260211",
+        "texture": true,
+        "pbr": true,
+        "texture_quality": "detailed",
+        "geometry_quality": "standard",
+        "face_limit": 20000,
+        "auto_size": true,
+        "model_seed": 4104,
+        "texture_seed": 4104
+      }
+    }
+  ]
+}
