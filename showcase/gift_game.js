@@ -304,6 +304,9 @@ try {
     const mealStart=pos(p.meal);world.release(p.meal);world.hold(a.child,p.meal);const mealEnd=pos(p.meal);world.release(p.meal);p.meal.position.copy(mealStart);
     await tween(.85,t=>p.meal.position.lerpVectors(mealStart,mealEnd,ease(t)));world.hold(a.child,p.meal);world.pose(a.clerk,'idle');
     world.pose(a.child,'confirm');gaze(a.child,a.clerk.userData.head);await wait(.8);
+    // Leave the handover close-up before the exchange continues, keeping both
+    // faces in the conversation instead of holding on the counter and tray.
+    await shot([3.15,2.05,-.05],[.55,1.2,-1.85]);
     await speak('孩子','谢谢阿姨。',2.2);
     await speak('店员','在这儿吃，还是带走？',2.6);
     await speak('孩子','在这儿。',1.8);
