@@ -551,6 +551,8 @@
     for(const x of [-.55,.55])round(.035,.065,.72,.012,[x,.025,0],M.red,meal);
     for(const z of [-.35,.35])round(1.1,.065,.035,.012,[0,.025,z],M.red,meal);
     const burger=props.burger=group('Burger',[-.22,.05,.02],meal);burger.userData.isFood=true;
+    // A normal single-serving burger: keep the tray and handover sockets stable.
+    burger.scale.setScalar(.65);
     const bun=material(0xd9903e,{roughness:.66}), patty=material(0x613526,{roughness:.92}), cheese=material(0xf3c442,{roughness:.57}), tomato=material(0xc95938,{roughness:.64});
     cylinder(.177,.165,.066,[0,.043,0],bun,burger,64).userData.foodLayer=true;
     cylinder(.169,.177,.042,[0,.09,0],patty,burger,64).userData.foodLayer=true;
@@ -589,7 +591,7 @@
       const drop=sphere(.009,[.106,.16,z],material(0xf2eee0,{transparent:true,opacity:.55,roughness:.22}),drink,[.55,1.5,.55]);
       drop.userData.condensation=true;
     }
-    const lid=props.lid=group('Closed burger box',[-.23,.05,.02],meal);
+    const lid=props.lid=group('Closed burger box',[-.23,.05,.02],meal);lid.scale.setScalar(.67);
     round(.44,.009,.41,.003,[0,.31,0],M.paper,lid);
     box(.012,.31,.41,[-.218,.155,0],M.paper,lid);box(.012,.31,.41,[.218,.155,0],M.paper,lid);
     box(.44,.31,.012,[0,.155,.205],M.paper,lid);box(.44,.31,.012,[0,.155,-.205],M.paper,lid);
@@ -979,7 +981,7 @@
         }else if(d.held?.userData.isFood){
           const lift=p==='firstBite'?biteLift:eating?.92:.12;
           aimHand(d,1,new T.Vector3(.042,1.10+lift*.16,.30-lift*.052),blend);
-          if(eating)aimHand(d,0,new T.Vector3(-.073,1.10+lift*.14,.274-lift*.036),blend);
+          if(eating)aimHand(d,0,new T.Vector3(-.035,1.118+lift*.14,.274-lift*.036),blend);
         }else if(p==='wipe'){
           aimHand(d,1,new T.Vector3(.018+Math.sin(time*3.2)*.008,1.497,.141),blend);
         }else if(d.held?.userData.isCoins||p==='countCoins'){
