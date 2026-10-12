@@ -331,9 +331,17 @@ try {
   async function openMeal(){
     if(story.stage!=='eat'||eaten)return;
     if(!await sitAtTable())return;
-    const lid=p.lid,from=lid.position.clone();world.pose(a.child,'sit');gaze(a.child,p.meal);
+    const lid=p.lid,from=lid.position.clone();
+    // Hinge the lid on its rear lower edge. The pivot is expressed in lid
+    // local units and scaled with the lid, then the translation compensates
+    // the rotated pivot so it stays fixed on the meal tray while opening.
+    const hinge=new T.Vector3(0,0,-.205).multiply(lid.scale);
+    world.pose(a.child,'sit');gaze(a.child,p.meal);
     await shot([-3.4,1.82,.56],[-2.55,.94,-.28]);
-    await tween(1.25,t=>{lid.rotation.x=-1.8*ease(t);lid.position.set(from.x,from.y+t*.25,from.z-t*.38);});
+    await tween(1.25,t=>{
+      const angle=-1.45*ease(t),rotated=hinge.clone().applyEuler(new T.Euler(angle,0,0));
+      lid.rotation.x=angle;lid.position.copy(from).add(hinge).sub(rotated);
+    });
     eaten=true;world.pose(a.child,'sit');foley('paper');$('#instruction').textContent='点击汉堡，吃下第一口。';
     await wait(.9);
   }
