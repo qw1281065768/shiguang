@@ -100,3 +100,5 @@ body[data-film="true"] #subtitle{backdrop-filter:none}
 
 .tray-preview{pointer-events:auto;display:flex;gap:14px;align-items:center;background:none;color:#d4bc94;font-size:12px;padding:16px 0 0}.tray-preview span{color:#a5b5ad;font-size:10px}.tray-preview:hover{color:#f2dec0}
 @media(min-width:800px){#trayPanel{left:24px;transform:none;width:420px}}
+
+#exploreHint,#balanceOption{pointer-events:auto;width:100%;margin-top:8px;padding:9px 13px;font-size:11px;text-align:left}.explore-preview{font-size:14px;color:#ead0a3}.tray-preview + .tray-preview{font-size:10px;padding-top:10px;color:#96aaa2}.tray-preview + .tray-preview span{font-size:9px}

@@ -283,9 +283,51 @@
     round(.47,.39,.10,.035,[0,.27,-.06],M.darkTeal,till);
     sign('18.00','合计 / 元',.39,.24,[0,.28,0],till,'#7c9781','#243c32');
     for(let i=0;i<3;i++) box(.09,.014,.055,[-.12+i*.12,.138,.10],M.cream,till);
-    // This is an ordinary stretch of counter, not a dedicated lost-property station.
+    // The ordinary till handover stays separate from the quiet corner return tray.
     const found=props.found=group('Counter handover',[.6,1,-2.03],stage);
     const receipt=plane(.16,.23,[.25,.008,-.18],textTexture('小岛汉堡','2003 / 10 / 18', '#ded6c3','#66645c'),found);receipt.rotation.x=-Math.PI/2;receipt.rotation.z=.14;
+    const lostProperty=props.lostProperty=props.returnSlot=group('Lost property corner',[-.60,1,-2.20],stage);
+    props.returnApproach={x:-.60,z:-1.48};
+    lostProperty.userData.approach=props.returnApproach;
+    // A small supported lip at the counter's left end puts the tray within reach.
+    // It adds no floor obstacle and leaves the main service counter uncluttered.
+    round(.60,.025,.42,.012,[0,-.018,-.015],enamel,lostProperty);
+    for(const x of [-.22,.22])line([[x,-.18,-.05],[x,-.035,.12],[x,-.035,-.17]],.009,chrome,lostProperty);
+    const returnTrayMaterial=material(0xadb3a5,{metalness:.30,roughness:.54});
+    round(.49,.018,.30,.009,[0,.006,.055],returnTrayMaterial,lostProperty);
+    for(const x of [-.244,.244])round(.018,.045,.30,.006,[x,.025,.055],returnTrayMaterial,lostProperty);
+    round(.49,.045,.018,.005,[0,.025,-.094],returnTrayMaterial,lostProperty);
+    round(.49,.023,.018,.005,[0,.014,.204],returnTrayMaterial,lostProperty);
+    const trayLiner=plane(.43,.25,[0,.017,.055],textTexture('暂存','请将拾到的物品放在这里','#ded9c9','#716d5f'),lostProperty);trayLiner.rotation.x=-Math.PI/2;
+    props.returnPoint=group('Returned voucher resting point',[0,.036,.105],lostProperty);
+    const returnSign=group('Lost property desk sign',[0,.025,-.25],lostProperty);
+    round(.46,.016,.13,.004,[0,0,0],chrome,returnSign);
+    const lostPropertyLabel=plane(.43,.18,[0,.107,.018],textTexture('失物招领','LOST & FOUND','#e7e1d2','#645f51'),returnSign);lostPropertyLabel.rotation.x=-.12;
+    round(.25,.015,.32,.007,[.04,.002,-.49],M.edge,lostProperty);
+    const registerSheet=plane(.23,.29,[.04,.011,-.49],canvasTexture(768,1024,(c,w,h)=>{
+      c.fillStyle='#e4ddc9';c.fillRect(0,0,w,h);c.fillStyle='#635f53';c.textAlign='center';c.font='600 76px "PingFang SC",sans-serif';c.fillText('失物登记',w/2,150);
+      c.font='38px "PingFang SC",sans-serif';c.fillText('日期    物品    领取人',w/2,265);
+      c.strokeStyle='#a69e87';c.lineWidth=3;for(let y=310;y<960;y+=122){c.beginPath();c.moveTo(40,y);c.lineTo(w-40,y);c.stroke();}
+      for(const x of [235,505]){c.beginPath();c.moveTo(x,210);c.lineTo(x,920);c.stroke();}
+    }),lostProperty);registerSheet.rotation.x=-Math.PI/2;
+    round(.086,.015,.033,.004,[.04,.023,-.626],chrome,lostProperty);
+    function setLostPropertyActive(active){
+      lostProperty.userData.active=!!active;
+      returnTrayMaterial.color.set(active?0xc4c6b6:0xadb3a5);
+    }
+    const counterNote=props.counterNote=group('Completed pickup order',[.12,1.007,-2.29],stage);
+    counterNote.userData.paperKind='order';counterNote.userData.approach={x:.12,z:-1.43};
+    round(.26,.007,.33,.003,[0,0,0],M.paper,counterNote);
+    const orderPaper=plane(.25,.32,[0,.004,0],canvasTexture(768,1024,(c,w,h)=>{
+      c.fillStyle='#e6dcc4';c.fillRect(0,0,w,h);c.textAlign='center';c.fillStyle='#595548';
+      c.font='600 98px "PingFang SC",sans-serif';c.fillText('取餐单',w/2,165);
+      c.font='48px "PingFang SC",sans-serif';c.fillText('小岛汉堡 · 10 / 18',w/2,262);
+      c.font='600 178px sans-serif';c.fillText('012',w/2,485);
+      c.font='50px "PingFang SC",sans-serif';c.fillText('取餐号码',w/2,585);
+      c.strokeStyle='#aaa18c';c.lineWidth=4;c.beginPath();c.moveTo(50,665);c.lineTo(w-50,665);c.stroke();
+      c.fillStyle='#98504a';c.font='600 91px "PingFang SC",sans-serif';c.fillText('已取餐',w/2,820);
+      c.fillStyle='#746b58';c.font='37px "PingFang SC",sans-serif';c.fillText('本单仅作取餐记录',w/2,934);
+    }),counterNote);orderPaper.rotation.x=-Math.PI/2;counterNote.rotation.y=-.12;
     const drawer=props.lostDrawer=group('Counter drawer',[1.1,.68,-2.90],stage);
     round(.60,.15,.50,.018,[0,0,0],M.edge,drawer);
     round(.57,.018,.47,.007,[0,.082,0],material(0x635844),drawer);
@@ -500,7 +542,21 @@
     cylinder(.084,.084,.012,[0,.196,0],enamel,emptyCup);
     const cupBrand=plane(.072,.035,[0,.102,.074],textTexture('小岛','', '#9f302a','#fff0d6'),emptyCup);
     line([[.01,.198,.01],[.01,.32,.01],[.04,.34,.01]],.006,brandRed,emptyCup);
-    const foldedReceipt=plane(.13,.17,[-.31,.800,.12],textTexture('小岛汉堡','15.00','#ded4bb','#746c5a'),sideTable);foldedReceipt.rotation.x=-Math.PI/2;foldedReceipt.rotation.z=.17;
+    const tableReceipt=props.tableReceipt=group('Paid dining receipt',[2.87,.800,.83],stage);
+    tableReceipt.userData.paperKind='receipt';tableReceipt.userData.approach={x:2.23,z:.80};
+    round(.24,.006,.31,.003,[0,0,0],M.paper,tableReceipt);
+    const receiptPaper=plane(.23,.30,[0,.004,0],canvasTexture(768,1024,(c,w,h)=>{
+      c.fillStyle='#e9e1d0';c.fillRect(0,0,w,h);c.fillStyle='#625c4f';c.textAlign='center';
+      c.font='600 85px "PingFang SC",sans-serif';c.fillText('小岛汉堡',w/2,132);
+      c.font='46px "PingFang SC",sans-serif';c.fillText('点餐小票 · 03 桌',w/2,225);
+      c.strokeStyle='#a69e8c';c.lineWidth=4;c.beginPath();c.moveTo(50,283);c.lineTo(w-50,283);c.stroke();
+      c.textAlign='left';c.font='61px "PingFang SC",sans-serif';c.fillText('汉堡',65,409);c.fillText('汽水',65,526);
+      c.textAlign='right';c.font='58px sans-serif';c.fillText('12.00',w-65,409);c.fillText('3.00',w-65,526);
+      c.beginPath();c.moveTo(50,590);c.lineTo(w-50,590);c.stroke();
+      c.textAlign='center';c.font='600 61px "PingFang SC",sans-serif';c.fillText('合计  15.00 元',w/2,700);
+      c.fillStyle='#8d4e46';c.font='600 91px "PingFang SC",sans-serif';c.fillText('已结账',w/2,844);
+      c.fillStyle='#746b58';c.font='36px "PingFang SC",sans-serif';c.fillText('谢谢惠顾 · 2003 / 10 / 18',w/2,956);
+    }),tableReceipt);receiptPaper.rotation.x=-Math.PI/2;tableReceipt.rotation.y=.16;
     // The entrance mat carries damp shoe marks, without an extra obstacle.
     const wetMatTex=canvasTexture(256,256,(c,w,h)=>{
       c.clearRect(0,0,w,h);c.fillStyle='rgba(30,43,42,.11)';
@@ -528,6 +584,8 @@
       const top=plane(.074,.074,[i*.14,.007,0],textTexture('1','', '#efc66e','#947135'),coins);top.rotation.x=-Math.PI/2;
     }
     const coupon=props.coupon=group('Meal voucher',[1.8,1.15,3]);
+    coupon.userData.paperKind='voucher';
+    props.searchPapers=[coupon,tableReceipt,counterNote];
     coupon.scale.setScalar(.4);
     round(.47,.014,.30,.005,[0,0,0],M.amber,coupon);
     const couponTex=canvasTexture(720,440,(c,w,h)=>{
@@ -1072,6 +1130,6 @@
       rain.children.forEach((drop,i)=>{drop.position.y=((drop.userData.baseY-time*(.025+(i%3)*.011))%1.98+1.98)%1.98;});
     }
     pose(actors.child,'shy');
-    return {actors,props,colliders,bounds:{minX:-4.05,maxX:4.05,minZ:-1.75,maxZ:3.65},floor,update,pose,lookAt,hold,release,setTrayBalance,bite,stowCoupon,setMood,recordStaffMeal,setView};
+    return {actors,props,colliders,bounds:{minX:-4.05,maxX:4.05,minZ:-1.75,maxZ:3.65},floor,update,pose,lookAt,hold,release,setTrayBalance,bite,stowCoupon,setLostPropertyActive,setMood,recordStaffMeal,setView};
   };
 })();
