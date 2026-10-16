@@ -22,7 +22,6 @@ try {
   let cursor={x:0,y:0},dropPoint=new T.Vector3(-2.75,.055,2.02),eaten=false;
   const dropZone={x:-2.75,z:2.02,radius:.48};
   let bought=false,lastCustomerLeft=false,pendingMode=null,seatTransition=null;
-  let choiceMemory=null;
   let trayRun=null;
   let couponSeen=false,exploreHints=0,hintUntil=0,exploreKey='',trayRequested=false;
   const diningSeat=new T.Vector3(-1.73,.09,-.45),chairApproach={x:-1.09,z:-.45};
@@ -85,20 +84,17 @@ try {
   function role(label){$('#roleName').textContent=label;visible($('#role'),!demo&&!busy);}
   const stages={
     buy:{n:1,title:'买一张儿童套餐券',text:'先把这张券买下来。故事还没到取餐的时候。'},
-    choice:{n:2,title:'餐券在你手里',text:'券已经买好了。可以把它留下，也可以先收着。'},
-    doorway:{n:2,title:'你在门边停了一下',text:'餐券还在身上。可以回去留下，也可以走出店门；不会结束游戏。'},
-    adult:{n:2,title:'把券放到书包旁',text:'把它放在他看得见、也能自己决定的地方。'},
+    adult:{n:2,title:'找个地方，把券留下',text:'可以先看看菜单、和店员聊聊，或走近小时候的自己。准备好了，就把券留在窗边的书包旁。'},
     child:{n:3,title:'找找那张落下的餐券',text:'在店里走走，观察座位和地上的纸片。走近后按 E 或点击观察；找到餐券，再把它捡起。'},
     return:{n:4,title:'送到失物招领处',text:'找到店里的失物招领托盘，把餐券放进去。和店员交谈可以问路，归还需要亲手完成。'},
     meal:{n:5,title:'到窗边吃汉堡',text:'券已经交还。把这份热餐端到窗边，就在这里吃吧。'},
     eat:{n:6,title:'打开纸盒',text:'坐在窗边打开餐盒，再亲手决定什么时候吃第一口。'},
-    leave:{n:2,title:'雨还没有停',text:'现在可以控制孩子，看看店里的物件。想接着走餐券的故事，随时回到拿券的时候，不必重买。'},
     done:{n:6,title:'第一幕 · 窗边的位置',text:'这一幕停在这里。你可以留下，或回到章节档案。'}
   };
   function hud(){const s=stages[story.stage];if(!s){visible($('#hud'),false);refreshTargets();return;}$('#chapter').textContent='第一幕 · '+s.n+' / 6';$('#objective').textContent=s.title;
     $('#instruction').textContent=story.stage==='child'&&couponSeen?'这是一张还没用过的儿童套餐券。走近它，再按 E 或点击拾取。':story.stage==='eat'&&eaten?'热气还没有散。准备好了，就吃第一口。':s.text;
     $('#progress').innerHTML=Array.from({length:6},(_,i)=>'<i class="'+(i<s.n?'past':'')+'"></i>').join('');visible($('#hud'),!demo&&!busy&&!endingReady);
-    const held=['choice','doorway','adult','return'].includes(story.stage)?'已付款的儿童套餐券':story.stage==='meal'?'店员送你的热套餐':'';
+    const held=['adult','return'].includes(story.stage)?'已付款的儿童套餐券':story.stage==='meal'?'店员送你的热套餐':'';
     $('#heldName').textContent=held;visible($('#inventory'),!!held&&!demo);refreshTargets();}
   function advance(next){if(!story.advance(next))throw Error('Unexpected story transition: '+story.stage+' → '+next);exploreHints=0;hintUntil=0;exploreKey='';hud();}
   function cancelWalk(){moveId++;if(walking){world.pose(walking.actor,'idle');walking.resolve(false);walking=null;}}
@@ -123,18 +119,16 @@ try {
   async function approach(actor,point,r=.48){if(distance(actor.position,point)<r+.12){cancelWalk();face(actor,point);return true;}
     const goal=reachableApproach(actor,point,r);if(!goal)return false;const ok=await walk(actor,goal);if(ok)face(actor,point);return ok;}
   function target(label,object,offset,action){return {label,object,offset:new T.Vector3(...offset),action};}
-  // The fork must be an intentional click.  E still works for ordinary
-  // contextual actions, but cannot silently choose a life path for the player.
-  function choosing(){return ['choice','doorway'].includes(story.stage);}
-  function exploring(){return !demo&&['child','return'].includes(story.stage);}
+  function exploring(){return !demo&&['adult','child','return'].includes(story.stage);}
   function explorePoint(object){
-    if(object===p.coupon)return dropPoint;
+    if(object===p.coupon)return active.userData.held===object?active.position:dropPoint;
     if(object===p.lostProperty)return p.returnApproach;
     if(object.userData.approach)return object.userData.approach;
     return observation(object).point||pos(object);
   }
   function exploreNear(object){const point=explorePoint(object);return distance(active.position,point)<=(object===p.coupon?.85:object===p.lostProperty?.48:.58);}
   function explorationAction(object){
+    if(object===p.bag&&story.stage==='adult')return {label:'放到书包旁',action:()=>dropCoupon(false)};
     if(object===p.coupon&&story.stage==='child')return {label:couponSeen?'捡起餐券':'观察地上的纸',action:couponSeen?pickCoupon:()=>inspectPaper(object)};
     if(object===p.lostProperty&&story.stage==='return')return {label:'放入失物招领托盘',action:returnCoupon};
     if(object===p.tableReceipt||object===p.counterNote)return {label:object===p.tableReceipt?'看看桌上的小票':'看看取餐单',action:()=>inspectPaper(object)};
@@ -142,26 +136,26 @@ try {
   }
   function nearbyExploration(){
     if(!exploring())return null;
-    const candidates=[story.stage==='child'?p.coupon:null,p.lostProperty,p.tableReceipt,p.counterNote,a.clerk,p.bag,p.window,p.table].filter(Boolean).filter(exploreNear);
+    const candidates=[story.stage==='child'?p.coupon:null,p.lostProperty,p.tableReceipt,p.counterNote,a.clerk,p.bag,p.window,p.table,p.sideTable,p.menu,story.stage==='adult'?a.child:null].filter(Boolean).filter(exploreNear);
     candidates.sort((x,y)=>distance(active.position,explorePoint(x))-distance(active.position,explorePoint(y)));
-    const goal=story.stage==='child'?p.coupon:p.lostProperty;
+    const goal=story.stage==='adult'?p.bag:story.stage==='child'?p.coupon:p.lostProperty;
     const object=candidates.includes(goal)?goal:candidates[0];return object?{object,...explorationAction(object)}:null;
   }
-  function currentAction(){return exploring()?nearbyExploration()?.action||null:story.stage==='buy'?buyCoupon:choosing()?null:story.stage==='adult'?()=>dropCoupon(true):story.stage==='child'?pickCoupon:story.stage==='return'?returnCoupon:story.stage==='meal'?carryMeal:story.stage==='eat'?(eaten?finishMeal:openMeal):story.stage==='leave'?revisitChoice:null;}
+  function currentAction(){return exploring()?nearbyExploration()?.action||null:story.stage==='buy'?buyCoupon:story.stage==='adult'?()=>dropCoupon(true):story.stage==='child'?pickCoupon:story.stage==='return'?returnCoupon:story.stage==='meal'?carryMeal:story.stage==='eat'?(eaten?finishMeal:openMeal):null;}
   function explorationHint(){
     if(!exploring()||busy||paused)return;
     exploreHints=Math.min(3,exploreHints+1);
-    const clues=story.stage==='child'?['留意窗边的座位，纸片可能落在桌边或地上。','书包旁露出一角黄色的纸。走近以后先观察。','已经短暂标出书包旁的区域。走过去，观察，再拾取。']:['寻找写着「失物招领」的小牌子，取餐口并不是交还点。','在柜台左侧边角，有一个独立的小托盘。','已经短暂标出失物招领托盘。走到旁边，再按 E 放入。'];
+    const clues=story.stage==='adult'?['他还在看菜单。你可以先在店里走走，书包留在窗边。','靠近窗边的书包，那里不挡路，他回来时能看见。','已短暂标出书包旁的位置。走近以后，按 E 或点击，把券留下。']:story.stage==='child'?['留意窗边的座位，纸片可能落在桌边或地上。','书包旁露出一角黄色的纸。走近以后先观察。','已经短暂标出书包旁的区域。走过去，观察，再拾取。']:['寻找写着「失物招领」的小牌子，取餐口并不是交还点。','在柜台左侧边角，有一个独立的小托盘。','已经短暂标出失物招领托盘。走到旁边，再按 E 放入。'];
     toast(clues[exploreHints-1],6);if(exploreHints===3)hintUntil=time+8;
     $('#exploreHint').textContent=exploreHints<3?'再给一点线索':'再标一下位置';
   }
   $('#exploreHint').onclick=explorationHint;
   function refreshTargets(){
     exploreKey=story.stage+':'+(nearbyExploration()?.label||'')+':'+demo+':'+busy+':'+paused;
-    $('#targets').replaceChildren();$('#targets').setAttribute('data-choice',String(choosing()));targets=[];
+    $('#targets').replaceChildren();targets=[];
     const enabled=started&&!busy&&!paused&&!demo&&story.stage!=='done';
     const nearby=nearbyExploration();
-    const label=exploring()?(nearby?.label||'走近物件后观察 · E'):story.stage==='buy'?'买餐券 · 18 元':story.stage==='adult'?'放到书包旁':story.stage==='child'?'捡起餐券':story.stage==='return'?'放入失物招领托盘':story.stage==='meal'?'端到窗边坐下':story.stage==='eat'?(eaten?'吃第一口':'打开纸盒'):story.stage==='leave'?'回到拿券的时候':choosing()?'请在下方作出选择':'正在走进记忆…';
+    const label=exploring()?(nearby?.label||'走近物件后观察 · E'):story.stage==='buy'?'买餐券 · 18 元':story.stage==='adult'?'放到书包旁':story.stage==='child'?'捡起餐券':story.stage==='return'?'放入失物招领托盘':story.stage==='meal'?'端到窗边坐下':story.stage==='eat'?(eaten?'吃第一口':'打开纸盒'):'正在走进记忆…';
     visible($('#contextAction'),enabled&&story.stage!=='intro');
     $('#contextAction').textContent=busy?'这一段正在发生…':label;
     $('#contextAction').disabled=!enabled||!currentAction();
@@ -173,15 +167,10 @@ try {
     if(napkinControl){visible(napkinControl,enabled&&story.stage==='eat');napkinControl.disabled=!enabled||story.stage!=='eat';napkinControl.textContent=p.napkin?.userData.used?'看看用过的纸巾':'拿张纸巾';}
     if(!enabled)return;
     if(story.stage==='buy')targets=[target('买餐券 · 18 元',a.clerk,[0,1.8,0],buyCoupon)];
-    // The story fork has a fixed, deliberate choice card instead of two
-    // overlapping labels attached to the same moving character.
-    if(story.stage==='choice')targets=[target('留给他',a.adult,[-.55,1.72,0],chooseKeep),target('先收起来',a.adult,[.55,1.72,0],pauseAtDoor)];
-    if(story.stage==='doorway')targets=[target('回去，把券留下',a.adult,[-.55,1.72,0],chooseKeep),target('走出店门',a.adult,[.55,1.72,0],leaveWithCoupon)];
-    if(story.stage==='adult')targets=[target('放到书包旁',p.dropSpot||p.bag,[0,.38,0],()=>dropCoupon(true))];
     if(exploring()&&nearby)targets=[target(nearby.label,nearby.object,[0,.28,0],nearby.action)];
     if(story.stage==='meal')targets=[target('端到窗边',p.table,[0,1.15,0],carryMeal)];
     if(story.stage==='eat')targets=[target(eaten?'吃第一口':'打开纸盒',p.meal,[0,.7,0],eaten?finishMeal:openMeal)];
-    for(const t of targets){const b=document.createElement('button');b.className=choosing()?'target choice-option':'target';b.setAttribute('aria-label',t.label);b.innerHTML='<span class="num">'+stages[story.stage].n+'</span>'+t.label;
+    for(const t of targets){const b=document.createElement('button');b.className='target';b.setAttribute('aria-label',t.label);b.innerHTML='<span class="num">'+stages[story.stage].n+'</span>'+t.label;
       b.addEventListener('click',()=>perform(t.action));t.button=b;$('#targets').appendChild(b);}
   }
   function modeUI(){
@@ -190,7 +179,7 @@ try {
     $('#modeSwitch').textContent=pendingMode===null?(demo?'改为亲自游玩':'改为自动演绎'):(pendingMode?'即将自动演绎':'即将交还操作');
     $('#modeSwitch').setAttribute('aria-pressed',String(demo));
     $('#modeSwitch').disabled=endingReady;
-    $('#modeNote').textContent=pendingMode!==null?'这段动作结束后切换；故事会从这里继续。':!demo&&['doorway','leave'].includes(story.stage)?'自动体验会接回留券主线；亲自游玩可以继续停留与探索。':demo?'镜头会带你走完这段记忆；随时可以接过操作。':exploring()?'点击空地行走 · 远处物件先走近 · E 只操作附近物件':'点击场景探索 · 点击空地或 WASD 行走 · E 执行当前行动';
+    $('#modeNote').textContent=pendingMode!==null?'这段动作结束后切换；故事会从这里继续。':demo?'镜头会带你走完这段记忆；随时可以接过操作。':exploring()?'点击空地行走 · 远处物件先走近 · E 只操作附近物件':'点击场景探索 · 点击空地或 WASD 行走 · E 执行当前行动';
     visible($('#readOn'),!!finishSpeech&&!demo);
     visible($('#help'),started&&!demo&&!busy&&!endingReady&&story.stage!=='intro');
     visible($('#role'),started&&!demo&&!busy&&!endingReady);
@@ -243,57 +232,8 @@ try {
     const from=pos(p.coupon);world.hold(a.adult,p.coupon);const to=pos(p.coupon);world.release(p.coupon);p.coupon.position.copy(from);
     await tween(.65,t=>p.coupon.position.lerpVectors(from,to,ease(t)));world.hold(a.adult,p.coupon);world.pose(a.clerk,'idle');
     foley('paper');bought=true;
-    choiceMemory=[a.adult,a.child].map(actor=>({actor,position:actor.position.clone(),rotation:actor.rotation.clone(),pose:actor.userData.pose}));
-    advance('choice');await overview();
-    if(!demo)toast('券已经在你手里。接下来怎么做？',4);
-  }
-  async function chooseKeep(){
-    if(!['choice','doorway'].includes(story.stage)||!bought)return;
-    p.coupon.visible=true;gaze(a.adult,null);
-    advance('adult');
-    if(!demo)toast('走近书包，把券放在他能看见的地方。',3.5);
-  }
-  async function pauseAtDoor(){
-    if(story.stage!=='choice'||!bought)return;
-    p.coupon.visible=false;world.pose(a.adult,'idle');gaze(a.adult,null);foley('paper');
-    await shot([.4,2.05,1.1],[2.65,1.05,2.65]);
-    if(!await walk(a.adult,{x:2.55,z:2.75},1.55)){p.coupon.visible=true;return;}
-    face(a.adult,a.child.position);gaze(a.adult,a.child.userData.head);world.pose(a.adult,'hesitate');
-    await wait(.7);advance('doorway');
-  }
-  async function leaveWithCoupon(){
-    if(story.stage!=='doorway'||!bought)return;
-    gaze(a.adult,null);
-    if(!await walk(a.adult,{x:3.35,z:2.9},1.65))return;
-    foley('door');
-    world.release(p.coupon);p.coupon.visible=false;
-    await tween(.6,t=>$('#fade').style.opacity=String(t));
-    a.adult.visible=false;active=a.child;advance('leave');role('小时候的你');if(world.setMood)world.setMood('child');
-    await shot([-1.05,1.42,3.15],[-2.62,.64,1.75]);
-    await tween(.6,t=>$('#fade').style.opacity=String(1-t));
-    face(a.child,p.bag.position);gaze(a.child,p.bag);world.pose(a.child,'rummage');await wait(1.2);
-    if(await walk(a.child,{x:-3.7,z:2.05},1.25)){
-      face(a.child,p.window.position);gaze(a.child,p.window);
-      await shot([-.8,1.7,3.15],[-3.3,1.02,1.9]);
-    }
-    gaze(a.clerk,a.child.userData.head);await speak('店员','雨还大，再等一会儿吧。',2.7);
-    gaze(a.child,a.clerk.userData.head);await speak('孩子','嗯。',1.5);
-    gaze(a.child,null);gaze(a.clerk,null);world.pose(a.child,'idle');
-    // The memory stays playable. No ending panel, lost progress or forced replay.
-  }
-  async function revisitChoice(){
-    if(story.stage!=='leave'||!choiceMemory)return;
-    await tween(.45,t=>$('#fade').style.opacity=String(t));
-    for(const saved of choiceMemory){
-      saved.actor.position.copy(saved.position);saved.actor.rotation.copy(saved.rotation);
-      saved.actor.visible=true;world.pose(saved.actor,saved.pose);gaze(saved.actor,null);
-    }
-    gaze(a.clerk,null);world.pose(a.clerk,'idle');
-    active=a.adult;world.hold(a.adult,p.coupon);role('成年后的你');
-    if(world.setMood)world.setMood('adult');advance('choice');
-    await shot([3.15,2.05,-.05],[.55,1.2,-1.85]);
-    await tween(.45,t=>$('#fade').style.opacity=String(1-t));
-    if(!demo)toast('回到刚买好券的时候。餐券还在，不用重新购买。',3.5);
+    advance('adult');await overview();
+    if(!demo)toast('可以先在店里看看。准备好了，再到窗边的书包旁把券留下。',4);
   }
   function placePoint(){
     const x=active.position.x,z=active.position.z;
@@ -305,11 +245,9 @@ try {
   }
   async function dropCoupon(autoApproach=true){
     if(story.stage!=='adult'||!bought||!lastCustomerLeft)return;
+    if(!demo&&!exploreNear(p.bag))return;
+    if(autoApproach&&!exploreNear(p.bag)&&!await walk(a.adult,explorePoint(p.bag)))return;
     await shot([.25,1.85,3.85],[-2.55,.7,1.8]);
-    if(distance(a.adult.position,dropZone)>.85){
-      if(!autoApproach){toast('这里是过道，他未必看得见。靠近窗边的书包再放。',4);return;}
-      if(!await walk(a.adult,{x:-2.15,z:2.12}))return;
-    }
     cancelWalk();dropPoint=placePoint();face(a.adult,dropPoint);world.pose(a.adult,'reach');
     gaze(a.adult,p.bag);
     await shot([-1.05,1.27,3.5],[-2.57,.57,1.97]);
@@ -317,18 +255,15 @@ try {
     await tween(.95,t=>{p.coupon.position.lerpVectors(from,dropPoint,ease(t));p.coupon.rotation.set(0,.2,t*.12);a.adult.userData.body.rotation.x=Math.sin(t*Math.PI)*.35;});
     foley('paper');a.adult.userData.body.rotation.x=0;p.coupon.rotation.set(0,.2,0);world.pose(a.adult,'idle');
     await wait(demo?.9:0);
-    visible($('#inventory'),false);$('#objective').textContent='你从店门离开';$('#instruction').textContent='餐券留在他的书包旁。';
-    await shot([3.7,1.9,3.5],[-1.75,.83,1.55]);
-    await walk(a.adult,{x:3.35,z:2.9},1.65);foley('door');
-    await tween(.6,t=>$('#fade').style.opacity=String(t));
-    a.adult.visible=false;active=a.child;
-    // A short memory cut begins exploration by the menu, not standing on the
-    // answer. The voucher stays exactly where the adult left it.
-    a.child.position.set(.64,0,-1.38);world.pose(a.child,'idle');face(a.child,p.menu.position);
+    visible($('#inventory'),false);
+    // Stay in one continuous afternoon. The adult steps aside in the same
+    // room; the child and the paid voucher retain their world positions.
+    await shot([3.7,2.5,4.7],[-.3,.8,.45]);
+    if(!await walk(a.adult,{x:1.45,z:1.6},1.65))return;
+    face(a.adult,p.sideTable.position);gaze(a.adult,p.sideTable);world.pose(a.adult,'idle');
+    active=a.child;gaze(a.child,p.bag);face(a.child,p.bag.position);
     advance('child');role('小时候的你');if(world.setMood)world.setMood('child');
-    camera.position.set(5.8,5.6,8.8);focus.set(-1.0,.6,.35);camera.lookAt(focus);
     await shot([2.7,2.1,2.5],[.1,.8,-.35]);
-    await tween(.6,t=>$('#fade').style.opacity=String(1-t));
     await wait(.5);gaze(a.child,null);
     if(demo)await speak('孩子','那边是不是落了张纸？',2);
   }
@@ -368,7 +303,7 @@ try {
     const onTray=pos(p.coupon);world.hold(a.clerk,p.coupon);const hand=pos(p.coupon);world.release(p.coupon);p.coupon.position.copy(onTray);
     await tween(.7,t=>p.coupon.position.lerpVectors(onTray,hand,ease(t)));world.hold(a.clerk,p.coupon);
     visible($('#inventory'),false);
-    gaze(a.clerk,new T.Vector3(3.35,1.4,2.9));
+    gaze(a.clerk,p.coupon);
     await shot([1.48,1.72,-1.2],[.8,1.48,-2.9]);
     await speak('店员','好。有人来问，我替他还回去。',2.5);
     face(a.clerk,clerkStart);world.pose(a.clerk,'walk');
@@ -568,6 +503,9 @@ try {
     await walk(a.child,{x:-2.7,z:1.6},1.3);face(a.child,p.bag.position);world.pose(a.child,'rummage');
     await shot([-1.05,1.42,3.15],[-2.62,.64,1.75]);
     await speak('你','这个拉链头，总卡在这里。',2.7);
+    // He returns to the menu before the adult buys a voucher. Keeping him
+    // here leaves the bag unattended without a later teleport or rewind.
+    await walk(a.child,{x:-.10,z:-.85},1.3);face(a.child,p.menu.position);gaze(a.child,p.menu);world.pose(a.child,'idle');
     a.adult.visible=true;active=a.adult;world.pose(a.adult,'idle');face(a.adult,a.child.position);
     role('成年后的你');advance('buy');await endAction();autoAt=time+1;
   }
@@ -589,16 +527,16 @@ try {
       visible($('#loading'),false);
       if(excerpt==='explore'){
         a.adult.visible=false;a.customer.visible=false;lastCustomerLeft=true;bought=true;active=a.child;
-        a.child.position.set(.64,0,-1.38);role('小时候的你');world.pose(a.child,'idle');gaze(a.child,null);
+        a.child.position.set(-.10,0,-.85);role('小时候的你');world.pose(a.child,'idle');gaze(a.child,null);
         p.coupon.position.copy(dropPoint);p.coupon.rotation.set(0,.2,0);p.coupon.visible=true;
-        for(const stage of ['buy','choice','adult','child'])advance(stage);
+        for(const stage of ['buy','adult','child'])advance(stage);
         world.setMood('child');await endAction();
       }else if(excerpt){
         // A visible chapter excerpt, also useful for replaying the skill segment.
         // Its setup preserves the returned voucher and the independent staff meal.
         a.adult.visible=false;a.customer.visible=false;lastCustomerLeft=true;bought=true;active=a.child;
         a.child.position.set(.3,0,-.8);role('小时候的你');
-        for(const stage of ['buy','choice','adult','child','return'])advance(stage);
+        for(const stage of ['buy','adult','child','return'])advance(stage);
         await shot([3.15,2.05,-.05],[.55,1.2,-1.85]);
         world.stowCoupon(p.coupon);world.recordStaffMeal();await wait(1.6);
         world.hold(a.child,p.meal);world.setMood('meal');advance('meal');
@@ -655,7 +593,6 @@ try {
     if(exploring())return explorationAction(object);
     if((object===p.napkin||object===p.napkinBox)&&story.stage==='eat')return {label:p.napkin.userData.used?'看看用过的纸巾':'拿张纸巾',action:useNapkin};
     if((object===a.clerk||object===p.found)&&story.stage==='buy')return {label:'买餐券 · 18 元',action:buyCoupon};
-    if(object===p.bag&&story.stage==='adult')return {label:'放到书包旁',action:()=>dropCoupon(true)};
     if(object===p.coupon&&story.stage==='child')return {label:'捡起餐券',action:pickCoupon};
     if(object===p.lostProperty&&story.stage==='return')return {label:'放入失物招领托盘',action:returnCoupon};
     if(object===p.table&&story.stage==='meal')return {label:'端到窗边坐下',action:carryMeal};
@@ -699,11 +636,11 @@ try {
     if(object===p.window)return {label:'听一会儿雨',point:{x:-3.7,z:2.05},pose:'idle',speaker:'窗外',line:'水痕沿着玻璃慢慢滑下来。隔着一扇窗，街上的车声也轻了。'};
     if(object===p.sideTable)return {label:'看看刚空下的座位',point:{x:2.15,z:1.35},pose:'reach',speaker:'桌面',line:'杯子留下浅浅一圈水印。椅子还没推回去，刚才的人已经走进雨里。'};
     if(object===p.table)return {label:'看看窗边的位置',point:{x:-2.65,z:.8},pose:'idle',speaker:'窗边',line:'桌角被很多人的袖口磨得发亮。坐在这里，正好能看到玻璃上的雨。'};
-    if(object===a.clerk)return {label:'和店员说句话',point:{x:.62,z:-1.38},pose:'confirm',speaker:'店员',line:adult?'外面的雨还没停。要躲一会儿，就坐下吧。':story.stage==='return'?'捡到的东西，放左手边写着「失物招领」的小托盘就好。':story.stage==='child'?'找东西吗？看看窗边座位，刚才有人从那边走。':'先坐一会儿，不着急。'};
+    if(object===a.clerk)return {label:'和店员说句话',point:{x:.62,z:-1.38},pose:'confirm',speaker:'店员',line:adult&&story.stage==='adult'?'那孩子的书包在窗边，他刚才一直坐在那儿。':adult?'外面的雨还没停。要躲一会儿，就坐下吧。':story.stage==='return'?'捡到的东西，放左手边写着「失物招领」的小托盘就好。':story.stage==='child'?'找东西吗？看看窗边座位，刚才有人从那边走。':'先坐一会儿，不着急。'};
     if(object===p.found)return {label:'看看取餐口',point:{x:.62,z:-1.38},pose:'inspect',speaker:'取餐口',line:'这里是取餐的地方。失物招领在柜台左侧，另有一个小托盘。'};
-    if(object===a.child)return {label:adult?'看看小时候的自己':'想起书包的拉链',point:adult?{x:-1.94,z:1.54}:null,pose:'hesitate',speaker,line:adult?'袖口还是那道补过的线。他把手缩进去，装作只是在等雨停。':'拉链又卡住了。等雨小一点，就该回去了。'};
+    if(object===a.child)return {label:adult?'看看小时候的自己':'想起书包的拉链',point:adult?reachableApproach(a.adult,a.child.position,.8):null,pose:'hesitate',speaker,line:adult?'袖口还是那道补过的线。他把手缩进去，装作只是在等雨停。':'拉链又卡住了。等雨小一点，就该回去了。'};
     if(object===p.coins)return {label:'看看两枚硬币',pose:'countCoins',speaker:'两枚硬币',line:'来回数了好几遍，还是两块钱。硬币被手心捂得有一点热。'};
-    if(object===p.coupon)return {label:'看看手里的餐券',pose:'inspect',speaker:'餐券',line:'刚付过钱的儿童套餐券。薄薄一张纸，这一次可以由你决定把它留在哪里。'};
+    if(object===p.coupon)return {label:'看看手里的餐券',pose:'inspect',speaker:'餐券',line:'刚付过钱的儿童套餐券。他还在看菜单，书包留在窗边的座位旁。'};
     if(object===p.meal)return {label:'看看热餐',pose:'inspect',speaker:'餐盒',line:story.stage==='meal'?'纸盒是暖的。走稳一点，把它端到窗边。':'柜台后面的纸盒还没有打开。热气在盖子边缘结成细小的水珠。'};
     if(object===p.napkin||object===p.napkinBox)return {label:'看看纸巾',point:{x:-1.09,z:-1.06},pose:'reach',speaker:'纸巾',line:'纸巾就在杯子旁边。店员把最上面的一张折出一个小角，方便抽出来。'};
     return {label:'看一看',pose:'idle',speaker:names.get(object)||'记忆',line:'这间小店里，时间好像走得慢一点。'};
@@ -789,14 +726,14 @@ try {
       for(let i=waiters.length-1;i>=0;i--)if(time>=waiters[i].at){const w=waiters.splice(i,1)[0];w.resolve();}
       if(walking&&time>footstepAt){foley('step');footstepAt=time+.37;}updateMovement(dt);updateTray(dt);if(!walking&&!keys.size&&!busy&&active.userData.pose==='walk')world.pose(active,'idle');world.update(dt,time);
       if(exploring()&&!busy){const key=story.stage+':'+(nearbyExploration()?.label||'')+':'+demo+':'+busy+':'+paused;if(key!==exploreKey)refreshTargets();}
-      if(started&&demo&&!busy&&!autoPending&&story.stage!=='done'&&time>autoAt){autoPending=true;perform(async()=>{if(choosing())await chooseKeep();else{const action=currentAction();if(action)await action();}});}
+      if(started&&demo&&!busy&&!autoPending&&story.stage!=='done'&&time>autoAt){autoPending=true;perform(async()=>{const action=currentAction();if(action)await action();});}
     }
     activeMarker.visible=started&&!demo&&!busy&&!paused&&story.stage!=='done';activeMarker.position.set(active.position.x,.035,active.position.z);
     const current=story.stage==='buy'?p.found:story.stage==='adult'?p.dropSpot:story.stage==='child'?p.coupon:story.stage==='return'?p.lostProperty:story.stage==='meal'?p.table:story.stage==='eat'?p.meal:null;
     goalMarker.visible=!demo&&!!current&&!busy&&!paused&&(!exploring()||time<hintUntil);
-    if(current){const v=story.stage==='return'?p.returnApproach:pos(current);goalMarker.position.set(v.x,.04,story.stage==='buy'?-1.38:story.stage==='meal'?.8:v.z);goalMarker.scale.setScalar(1+Math.sin(time*3)*.08);}
+    if(current){const v=story.stage==='adult'?explorePoint(p.bag):story.stage==='return'?p.returnApproach:pos(current);goalMarker.position.set(v.x,.04,story.stage==='buy'?-1.38:story.stage==='meal'?.8:v.z);goalMarker.scale.setScalar(1+Math.sin(time*3)*.08);}
     if(world.setLostPropertyActive)world.setLostPropertyActive(story.stage==='return'&&exploreNear(p.lostProperty));
-    for(const t of targets){if(choosing())continue;const v=pos(t.object).add(t.offset).project(camera);t.button.style.left=Math.max(110,Math.min(innerWidth-110,(v.x*.5+.5)*innerWidth))+'px';t.button.style.top=Math.max(280,Math.min(innerHeight-115,(-v.y*.5+.5)*innerHeight))+'px';}
+    for(const t of targets){const v=pos(t.object).add(t.offset).project(camera);t.button.style.left=Math.max(110,Math.min(innerWidth-110,(v.x*.5+.5)*innerWidth))+'px';t.button.style.top=Math.max(280,Math.min(innerHeight-115,(-v.y*.5+.5)*innerHeight))+'px';}
     if(busy||paused||demo)visible($('#hover'),false);if(world.setView)world.setView(camera,demo||busy);renderer.render(scene,camera);
   }
   fitCamera();camera.position.copy(view.position);focus.copy(view.target);camera.lookAt(focus);a.adult.visible=false;p.coupon.visible=false;p.meal.position.set(2.0,1.11,-3.31);p.meal.visible=true;p.coins.visible=false;

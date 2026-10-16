@@ -46,9 +46,9 @@
     }
     return {clear,lineClear,route};
   }
-  // Hesitation is reversible. Only the child's completed meal ends this act;
-  // leaving with the voucher keeps the memory open for exploration and return.
-  const allowed={intro:['buy'],buy:['choice'],choice:['adult','doorway'],doorway:['adult','leave'],adult:['child'],child:['return'],return:['meal'],meal:['eat'],eat:['done'],leave:['choice'],done:[]};
+  // Exploration order is free within each beat. All routes converge on the
+  // same physical voucher, return and meal; the scene never rewinds a choice.
+  const allowed={intro:['buy'],buy:['adult'],adult:['child'],child:['return'],return:['meal'],meal:['eat'],eat:['done'],done:[]};
   function createStory() {
     let stage='intro';const history=['intro'];
     return {get stage(){return stage},get history(){return history.slice()},
