@@ -46,10 +46,9 @@
     }
     return {clear,lineClear,route};
   }
-  // Buying a voucher opens a real choice.  Keeping the fork in the story
-  // graph makes the alternate ending explicit instead of hiding it in a
-  // boolean in the renderer.
-  const allowed={intro:['buy'],buy:['choice'],choice:['adult','leave'],adult:['child'],child:['return'],return:['meal'],meal:['eat'],eat:['done'],leave:['done'],done:[]};
+  // Hesitation is reversible. Only the child's completed meal ends this act;
+  // leaving with the voucher keeps the memory open for exploration and return.
+  const allowed={intro:['buy'],buy:['choice'],choice:['adult','doorway'],doorway:['adult','leave'],adult:['child'],child:['return'],return:['meal'],meal:['eat'],eat:['done'],leave:['choice'],done:[]};
   function createStory() {
     let stage='intro';const history=['intro'];
     return {get stage(){return stage},get history(){return history.slice()},

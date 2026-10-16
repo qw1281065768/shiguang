@@ -21,7 +21,8 @@ try {
   let walking=null,moveId=0,targets=[],subtitleToken=0,toastToken=0,autoPending=false,autoAt=0,hoverObject=null;
   let cursor={x:0,y:0},dropPoint=new T.Vector3(-2.75,.055,2.02),eaten=false;
   const dropZone={x:-2.75,z:2.02,radius:.48};
-  let bought=false,lastCustomerLeft=false,alternateEnding=false,pendingMode=null,seatTransition=null;
+  let bought=false,lastCustomerLeft=false,pendingMode=null,seatTransition=null;
+  let choiceMemory=null;
   const diningSeat=new T.Vector3(-1.73,.09,-.45),chairApproach={x:-1.09,z:-.45};
   // The scene must not begin while a reviewed GLB is still popping into place.
   // Keep the fallback procedural prop visible if loading fails, but make the
@@ -82,19 +83,20 @@ try {
   function role(label){$('#roleName').textContent=label;visible($('#role'),!demo&&!busy);}
   const stages={
     buy:{n:1,title:'买一张儿童套餐券',text:'先把这张券买下来。故事还没到取餐的时候。'},
-    choice:{n:2,title:'餐券在你手里',text:'把这次机会留在原处，或者带着它离开。'},
+    choice:{n:2,title:'餐券在你手里',text:'券已经买好了。可以把它留下，也可以先收着。'},
+    doorway:{n:2,title:'你在门边停了一下',text:'餐券还在身上。可以回去留下，也可以走出店门；不会结束游戏。'},
     adult:{n:2,title:'把券放到书包旁',text:'把它放在他看得见、也能自己决定的地方。'},
     child:{n:3,title:'书包旁边，有一张券',text:'走近书包，看看这张突然出现的餐券。'},
     return:{n:4,title:'去问一问店员',text:'把餐券交给柜台，请店员替失主收好。'},
     meal:{n:5,title:'把餐端到窗边',text:'把店员送的热餐端到窗边，坐下来慢慢吃。'},
     eat:{n:6,title:'打开纸盒',text:'坐在窗边打开餐盒，再亲手决定什么时候吃第一口。'},
-    leave:{n:2,title:'第一幕 · 没有留下',text:'带走餐券，跟着这段记忆走到门外。'},
+    leave:{n:2,title:'雨还没有停',text:'现在可以控制孩子，看看店里的物件。想接着走餐券的故事，随时回到拿券的时候，不必重买。'},
     done:{n:6,title:'第一幕 · 窗边的位置',text:'这一幕停在这里。你可以留下，或回到章节档案。'}
   };
   function hud(){const s=stages[story.stage];if(!s){visible($('#hud'),false);refreshTargets();return;}$('#chapter').textContent='第一幕 · '+s.n+' / 6';$('#objective').textContent=s.title;
     $('#instruction').textContent=story.stage==='eat'&&eaten?'热气还没有散。准备好了，就吃第一口。':s.text;
     $('#progress').innerHTML=Array.from({length:6},(_,i)=>'<i class="'+(i<s.n?'past':'')+'"></i>').join('');visible($('#hud'),!demo&&!busy&&!endingReady);
-    const held=story.stage==='choice'||story.stage==='adult'||story.stage==='return'?'已付款的儿童套餐券':story.stage==='meal'?'店员送你的热套餐':'';
+    const held=['choice','doorway','adult','return'].includes(story.stage)?'已付款的儿童套餐券':story.stage==='meal'?'店员送你的热套餐':'';
     $('#heldName').textContent=held;visible($('#inventory'),!!held&&!demo);refreshTargets();}
   function advance(next){if(!story.advance(next))throw Error('Unexpected story transition: '+story.stage+' → '+next);hud();}
   function cancelWalk(){moveId++;if(walking){world.pose(walking.actor,'idle');walking.resolve(false);walking=null;}}
@@ -121,11 +123,12 @@ try {
   function target(label,object,offset,action){return {label,object,offset:new T.Vector3(...offset),action};}
   // The fork must be an intentional click.  E still works for ordinary
   // contextual actions, but cannot silently choose a life path for the player.
-  function currentAction(){return story.stage==='buy'?buyCoupon:story.stage==='choice'?null:story.stage==='adult'?()=>dropCoupon(true):story.stage==='child'?pickCoupon:story.stage==='return'?returnCoupon:story.stage==='meal'?carryMeal:story.stage==='eat'?(eaten?finishMeal:openMeal):null;}
+  function choosing(){return ['choice','doorway'].includes(story.stage);}
+  function currentAction(){return story.stage==='buy'?buyCoupon:choosing()?null:story.stage==='adult'?()=>dropCoupon(true):story.stage==='child'?pickCoupon:story.stage==='return'?returnCoupon:story.stage==='meal'?carryMeal:story.stage==='eat'?(eaten?finishMeal:openMeal):story.stage==='leave'?revisitChoice:null;}
   function refreshTargets(){
-    $('#targets').replaceChildren();$('#targets').setAttribute('data-choice',String(story.stage==='choice'));targets=[];
+    $('#targets').replaceChildren();$('#targets').setAttribute('data-choice',String(choosing()));targets=[];
     const enabled=started&&!busy&&!paused&&!demo&&story.stage!=='done';
-    const label=story.stage==='buy'?'买餐券 · 18 元':story.stage==='adult'?'放到书包旁':story.stage==='child'?'捡起餐券':story.stage==='return'?'把券交给店员':story.stage==='meal'?'端到窗边坐下':story.stage==='eat'?(eaten?'吃第一口':'打开纸盒'):story.stage==='choice'?'请在下方作出选择':'正在走进记忆…';
+    const label=story.stage==='buy'?'买餐券 · 18 元':story.stage==='adult'?'放到书包旁':story.stage==='child'?'捡起餐券':story.stage==='return'?'把券交给店员':story.stage==='meal'?'端到窗边坐下':story.stage==='eat'?(eaten?'吃第一口':'打开纸盒'):story.stage==='leave'?'回到拿券的时候':choosing()?'请在下方作出选择':'正在走进记忆…';
     visible($('#contextAction'),enabled&&story.stage!=='intro');
     $('#contextAction').textContent=busy?'这一段正在发生…':label;
     $('#contextAction').disabled=!enabled||!currentAction();
@@ -136,13 +139,14 @@ try {
     if(story.stage==='buy')targets=[target('买餐券 · 18 元',a.clerk,[0,1.8,0],buyCoupon)];
     // The story fork has a fixed, deliberate choice card instead of two
     // overlapping labels attached to the same moving character.
-    if(story.stage==='choice')targets=[target('留给他',a.adult,[-.55,1.72,0],chooseKeep),target('带着券离开',a.adult,[.55,1.72,0],leaveWithCoupon)];
+    if(story.stage==='choice')targets=[target('留给他',a.adult,[-.55,1.72,0],chooseKeep),target('先收起来',a.adult,[.55,1.72,0],pauseAtDoor)];
+    if(story.stage==='doorway')targets=[target('回去，把券留下',a.adult,[-.55,1.72,0],chooseKeep),target('走出店门',a.adult,[.55,1.72,0],leaveWithCoupon)];
     if(story.stage==='adult')targets=[target('放到书包旁',p.dropSpot||p.bag,[0,.38,0],()=>dropCoupon(true))];
     if(story.stage==='child')targets=[target('捡起餐券',p.coupon,[0,.35,0],pickCoupon)];
     if(story.stage==='return')targets=[target('把券交给店员',a.clerk,[0,1.8,0],returnCoupon)];
     if(story.stage==='meal')targets=[target('端到窗边',p.table,[0,1.15,0],carryMeal)];
     if(story.stage==='eat')targets=[target(eaten?'吃第一口':'打开纸盒',p.meal,[0,.7,0],eaten?finishMeal:openMeal)];
-    for(const t of targets){const b=document.createElement('button');b.className=story.stage==='choice'?'target choice-option':'target';b.setAttribute('aria-label',t.label);b.innerHTML='<span class="num">'+stages[story.stage].n+'</span>'+t.label;
+    for(const t of targets){const b=document.createElement('button');b.className=choosing()?'target choice-option':'target';b.setAttribute('aria-label',t.label);b.innerHTML='<span class="num">'+stages[story.stage].n+'</span>'+t.label;
       b.addEventListener('click',()=>perform(t.action));t.button=b;$('#targets').appendChild(b);}
   }
   function modeUI(){
@@ -151,7 +155,7 @@ try {
     $('#modeSwitch').textContent=pendingMode===null?(demo?'改为亲自游玩':'改为自动演绎'):(pendingMode?'即将自动演绎':'即将交还操作');
     $('#modeSwitch').setAttribute('aria-pressed',String(demo));
     $('#modeSwitch').disabled=endingReady;
-    $('#modeNote').textContent=pendingMode!==null?'这段动作结束后切换；故事会从这里继续。':demo?'镜头会带你走完这段记忆；随时可以接过操作。':'点击场景探索 · 点击空地或 WASD 行走 · E 执行当前行动';
+    $('#modeNote').textContent=pendingMode!==null?'这段动作结束后切换；故事会从这里继续。':!demo&&['doorway','leave'].includes(story.stage)?'自动体验会接回留券主线；亲自游玩可以继续停留与探索。':demo?'镜头会带你走完这段记忆；随时可以接过操作。':'点击场景探索 · 点击空地或 WASD 行走 · E 执行当前行动';
     visible($('#readOn'),!!finishSpeech&&!demo);
     visible($('#help'),started&&!demo&&!busy&&!endingReady&&story.stage!=='intro');
     visible($('#role'),started&&!demo&&!busy&&!endingReady);
@@ -198,26 +202,58 @@ try {
     await shot([1.60,1.55,-1.25],[.66,1.04,-2.05]);
     const from=pos(p.coupon);world.hold(a.adult,p.coupon);const to=pos(p.coupon);world.release(p.coupon);p.coupon.position.copy(from);
     await tween(.65,t=>p.coupon.position.lerpVectors(from,to,ease(t)));world.hold(a.adult,p.coupon);world.pose(a.clerk,'idle');
-    foley('paper');bought=true;advance('choice');await overview();
+    foley('paper');bought=true;
+    choiceMemory=[a.adult,a.child].map(actor=>({actor,position:actor.position.clone(),rotation:actor.rotation.clone(),pose:actor.userData.pose}));
+    advance('choice');await overview();
     if(!demo)toast('券已经在你手里。接下来怎么做？',4);
   }
   async function chooseKeep(){
-    if(story.stage!=='choice'||!bought)return;
+    if(!['choice','doorway'].includes(story.stage)||!bought)return;
+    p.coupon.visible=true;gaze(a.adult,null);
     advance('adult');
-    if(!demo)toast('把这次机会放在他看得见、也能自己决定的地方。',3.5);
+    if(!demo)toast('走近书包，把券放在他能看见的地方。',3.5);
+  }
+  async function pauseAtDoor(){
+    if(story.stage!=='choice'||!bought)return;
+    p.coupon.visible=false;world.pose(a.adult,'idle');gaze(a.adult,null);foley('paper');
+    await shot([.4,2.05,1.1],[2.65,1.05,2.65]);
+    if(!await walk(a.adult,{x:2.55,z:2.75},1.55)){p.coupon.visible=true;return;}
+    face(a.adult,a.child.position);gaze(a.adult,a.child.userData.head);world.pose(a.adult,'hesitate');
+    await wait(.7);advance('doorway');
   }
   async function leaveWithCoupon(){
-    if(story.stage!=='choice'||!bought)return;
-    alternateEnding=true;visible($('#inventory'),false);$('#objective').textContent='你从店门离开';$('#instruction').textContent='餐券被你带走了。';
-    await walk(a.adult,{x:3.35,z:2.9},1.65);foley('door');
+    if(story.stage!=='doorway'||!bought)return;
+    gaze(a.adult,null);
+    if(!await walk(a.adult,{x:3.35,z:2.9},1.65))return;
+    foley('door');
     world.release(p.coupon);p.coupon.visible=false;
     await tween(.6,t=>$('#fade').style.opacity=String(t));
-    a.adult.visible=false;advance('leave');role('小时候的你');if(world.setMood)world.setMood('child');
-    camera.position.set(5.8,5.6,8.8);focus.set(-1.0,.6,.35);camera.lookAt(focus);
+    a.adult.visible=false;active=a.child;advance('leave');role('小时候的你');if(world.setMood)world.setMood('child');
+    await shot([-1.05,1.42,3.15],[-2.62,.64,1.75]);
     await tween(.6,t=>$('#fade').style.opacity=String(1-t));
-    await speak('记忆','这一次，你没有把券留下。',3.2);
-    await speak('孩子','雨什么时候会停？',2.4);
-    advance('done');showEnding(true);
+    face(a.child,p.bag.position);gaze(a.child,p.bag);world.pose(a.child,'rummage');await wait(1.2);
+    if(await walk(a.child,{x:-3.7,z:2.05},1.25)){
+      face(a.child,p.window.position);gaze(a.child,p.window);
+      await shot([-.8,1.7,3.15],[-3.3,1.02,1.9]);
+    }
+    gaze(a.clerk,a.child.userData.head);await speak('店员','雨还大，再等一会儿吧。',2.7);
+    gaze(a.child,a.clerk.userData.head);await speak('孩子','嗯。',1.5);
+    gaze(a.child,null);gaze(a.clerk,null);world.pose(a.child,'idle');
+    // The memory stays playable. No ending panel, lost progress or forced replay.
+  }
+  async function revisitChoice(){
+    if(story.stage!=='leave'||!choiceMemory)return;
+    await tween(.45,t=>$('#fade').style.opacity=String(t));
+    for(const saved of choiceMemory){
+      saved.actor.position.copy(saved.position);saved.actor.rotation.copy(saved.rotation);
+      saved.actor.visible=true;world.pose(saved.actor,saved.pose);gaze(saved.actor,null);
+    }
+    gaze(a.clerk,null);world.pose(a.clerk,'idle');
+    active=a.adult;world.hold(a.adult,p.coupon);role('成年后的你');
+    if(world.setMood)world.setMood('adult');advance('choice');
+    await shot([3.15,2.05,-.05],[.55,1.2,-1.85]);
+    await tween(.45,t=>$('#fade').style.opacity=String(1-t));
+    if(!demo)toast('回到刚买好券的时候。餐券还在，不用重新购买。',3.5);
   }
   function placePoint(){
     const x=active.position.x,z=active.position.z;
@@ -364,14 +400,13 @@ try {
     // Stay with the child. A second walk around the furniture used to dilute
     // the first bite and made the ending feel like another task.
     await shot([-3.75,1.75,2.6],[-2.38,1.0,-.4],2.3);await wait(1.5);
-    advance('done');showEnding(false);
+    advance('done');showEnding();
   }
-  function showEnding(alternate=false){
+  function showEnding(){
     endingReady=true;visible($('#chapterMenu'),true);visible($('#hud'),false);visible($('#help'),false);visible($('#role'),false);visible($('#inventory'),false);visible($('#ending'),true);
     $('#pause').disabled=true;modeUI();refreshTargets();
     const eyebrow=$('#ending .eyebrow'),title=$('#ending h2'),copy=$('#ending p');
-    if(alternate){eyebrow.textContent='第一幕 · 另一种后来';title.textContent='没有留下的券';copy.textContent='雨还在下。这个下午没有被改写。';}
-    else{eyebrow.textContent='第一幕完';title.textContent='窗边的位置';copy.textContent='雨还在下。那张券回到了该去的地方，餐盒里还冒着热气。';}
+    eyebrow.textContent='第一幕完';title.textContent='窗边的位置';copy.textContent='雨还在下。那张券回到了该去的地方，餐盒里还冒着热气。';
   }
   async function finishMeal(){
     if(story.stage!=='eat'||!eaten)return;
@@ -586,12 +621,12 @@ try {
       for(let i=tweens.length-1;i>=0;i--){const tw=tweens[i],t=Math.min(1,(time-tw.at)/tw.d);tw.fn(t);if(t===1){tweens.splice(i,1);tw.resolve();}}
       for(let i=waiters.length-1;i>=0;i--)if(time>=waiters[i].at){const w=waiters.splice(i,1)[0];w.resolve();}
       if(walking&&time>footstepAt){foley('step');footstepAt=time+.37;}updateMovement(dt);if(!walking&&!keys.size&&!busy&&active.userData.pose==='walk')world.pose(active,'idle');world.update(dt,time);
-      if(started&&demo&&!busy&&!autoPending&&story.stage!=='done'&&time>autoAt){autoPending=true;perform(async()=>{if(story.stage==='choice')await chooseKeep();else if(story.stage==='adult')await dropCoupon(true);else{const action=story.stage==='choice'?chooseKeep:currentAction();if(action)await action();}});}
+      if(started&&demo&&!busy&&!autoPending&&story.stage!=='done'&&time>autoAt){autoPending=true;perform(async()=>{if(choosing())await chooseKeep();else{const action=currentAction();if(action)await action();}});}
     }
     activeMarker.visible=started&&!demo&&!busy&&!paused&&story.stage!=='done';activeMarker.position.set(active.position.x,.035,active.position.z);
     const current=story.stage==='buy'?p.found:story.stage==='adult'?p.dropSpot:story.stage==='child'?p.coupon:story.stage==='return'?p.found:story.stage==='meal'?p.table:story.stage==='eat'?p.meal:null;
     goalMarker.visible=!demo&&!!current&&!busy&&!paused;if(current){const v=pos(current);goalMarker.position.set(v.x,.04,['return','buy'].includes(story.stage)?-1.38:story.stage==='meal'?.8:v.z);goalMarker.scale.setScalar(1+Math.sin(time*3)*.08);}
-    for(const t of targets){if(story.stage==='choice')continue;const v=pos(t.object).add(t.offset).project(camera);t.button.style.left=Math.max(110,Math.min(innerWidth-110,(v.x*.5+.5)*innerWidth))+'px';t.button.style.top=Math.max(280,Math.min(innerHeight-115,(-v.y*.5+.5)*innerHeight))+'px';}
+    for(const t of targets){if(choosing())continue;const v=pos(t.object).add(t.offset).project(camera);t.button.style.left=Math.max(110,Math.min(innerWidth-110,(v.x*.5+.5)*innerWidth))+'px';t.button.style.top=Math.max(280,Math.min(innerHeight-115,(-v.y*.5+.5)*innerHeight))+'px';}
     if(busy||paused||demo)visible($('#hover'),false);if(world.setView)world.setView(camera,demo||busy);renderer.render(scene,camera);
   }
   fitCamera();camera.position.copy(view.position);focus.copy(view.target);camera.lookAt(focus);a.adult.visible=false;p.coupon.visible=false;p.meal.position.set(2.0,1.11,-3.31);p.meal.visible=true;p.coins.visible=false;
