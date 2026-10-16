@@ -102,3 +102,286 @@ body[data-film="true"] #subtitle{backdrop-filter:none}
 @media(min-width:800px){#trayPanel{left:24px;transform:none;width:420px}}
 
 #exploreHint,#balanceOption{pointer-events:auto;width:100%;margin-top:8px;padding:9px 13px;font-size:11px;text-align:left}.explore-preview{font-size:14px;color:#ead0a3}.tray-preview + .tray-preview{font-size:10px;padding-top:10px;color:#96aaa2}.tray-preview + .tray-preview span{font-size:9px}
+
+/* v44 — one quiet interface for the memory, from the menu to the last bite.
+   These are presentation-only rules; scene controls keep their existing IDs. */
+:root {
+  --ui-surface: #17282de8;
+  --ui-line: #d4c8ad33;
+  --ui-text: #f0e8d7;
+  --ui-muted: #b7c1b9;
+  --ui-accent: #d8bb8c;
+}
+button { touch-action: manipulation; }
+button:focus-visible, a:focus-visible, input:focus-visible {
+  outline: 2px solid #f0d2a0;
+  outline-offset: 4px;
+}
+.primary, .secondary { border-radius: 3px; }
+.primary {
+  color: #25312f;
+  background: linear-gradient(110deg, #e1c79f, #cdb28a);
+  border-color: #efddbd80;
+  box-shadow: inset 0 1px 0 #fff6e438, 0 3px 12px #081a1e12;
+}
+.primary:hover { background: #ead4af; }
+.secondary { background: #ffffff05; border-color: var(--ui-line); color: #d9dfd2; }
+.secondary:hover { background: #ffffff10; border-color: #d4c8ad66; }
+header { top: 25px; left: 28px; right: 28px; }
+.wordmark { font-size: 23px; letter-spacing: .22em; }
+.wordmark span { margin-left: 16px; opacity: .8; }
+#toolbar {
+  gap: 2px;
+  flex-wrap: nowrap;
+  padding: 4px;
+  border: 1px solid var(--ui-line);
+  border-radius: 5px;
+  background: #15262dd9;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 20px #07182018;
+}
+#toolbar button {
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  padding: 8px 11px;
+  min-height: 32px;
+  font-size: 10px;
+  color: #d6ded3;
+  white-space: nowrap;
+  transition: background .16s ease, color .16s ease;
+}
+#toolbar button:hover { background: #ffffff0c; color: #fff1d6; }
+#toolbar button:disabled { opacity: .45; }
+#modeSwitch { border-color: #c9b28c2e!important; color: #e2cba7!important; }
+#modeTag { background: transparent; color: #b3bdb5; border-radius: 0; padding: 0 13px 0 10px; margin: 0 5px 0 0; border-right: 1px solid var(--ui-line); font-size: 9px; }
+#hud {
+  top: 94px; left: 28px;
+  width: 264px;
+  max-width: calc(100vw - 32px);
+  padding: 18px 19px 16px;
+  border: 1px solid var(--ui-line);
+  border-top-color: #dcc8a76b;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #17282df2, #253332de);
+  box-shadow: 0 8px 30px #051a241c;
+  backdrop-filter: blur(12px);
+}
+#chapter { color: #c9b58f; font-size: 9px; letter-spacing: .16em; }
+#objective { font-size: 21px; line-height: 1.48; margin: 11px 0 9px; letter-spacing: .025em; color: var(--ui-text); }
+#instruction { font-size: 11px; line-height: 1.95; color: #c1ccc1; }
+#progress { gap: 5px; margin-top: 15px; }
+#progress i { flex: 1; width: auto; height: 2px; background: #abbcb426; }
+#progress i.past { background: #c8b18a; }
+#contextAction { min-height: 43px; margin-top: 16px; padding: 11px 13px; font-size: 12px; }
+#contextAction:disabled { opacity: .45; }
+#exploreHint, #inspectNapkin, #balanceOption {
+  min-height: 35px;
+  padding: 9px 1px 5px;
+  margin-top: 4px;
+  border: 0;
+  background: transparent;
+  color: #bdc6b8;
+  font-size: 10px;
+  box-shadow: none;
+}
+#exploreHint:hover, #inspectNapkin:hover, #balanceOption:hover { color: #f0d8b1; }
+#modeNote { color: #91a59c; font-size: 9px; line-height: 1.8; margin-top: 9px; }
+#role { top: 94px; right: 28px; border-radius: 3px; padding: 8px 11px; color: #cfd6ca; background: #17282dc9; border-color: #c8cbb826; font-size: 10px; }
+#roleDot { width: 5px; height: 5px; background: #cfb58e; box-shadow: 0 0 7px #d9ba7c20; }
+.target {
+  padding: 10px 14px;
+  min-height: 42px;
+  border-radius: 3px;
+  background: #f0e5cded;
+  border-color: #fff5df99;
+  color: #253831;
+  box-shadow: 0 4px 16px #071d2930;
+  font-size: 12px;
+}
+.target .num { background: #607063; margin-right: 8px; width: 17px; height: 17px; font-size: 9px; }
+.target:hover { background: #fff0d0; box-shadow: 0 0 0 2px #d4b78540, 0 6px 20px #071d2940; }
+#hover { border-color: var(--ui-line); padding: 7px 11px; font-size: 11px; }
+#subtitle {
+  bottom: 82px;
+  padding: 18px 24px 15px;
+  width: min(590px, calc(100vw - 48px));
+  min-width: 0;
+  max-width: 690px;
+  border: 1px solid #c7b89a33;
+  border-left: 2px solid #c9b18a;
+  border-radius: 3px;
+  background: linear-gradient(110deg, #14262ef5, #1c3034ee);
+  box-shadow: 0 8px 28px #06182024;
+}
+#speaker { margin-bottom: 7px; font-size: 10px; letter-spacing: .16em; color: #d1b996; }
+#line { font-size: 15px; line-height: 1.95; color: #f0eadc; }
+#readOn { min-height: 30px; padding-top: 7px; margin-top: 3px; font-size: 10px; color: #b6c3b4; }
+#readOn span { color: #b6a68b; }
+#help { bottom: 22px; left: 28px; gap: 15px; padding: 8px 10px; background: #17282db8; border-color: #c0c6b321; border-radius: 3px; font-size: 9px; color: #bdc9bd; }
+kbd { border-color: #bdc9b83d; color: #e0e3d4; border-radius: 2px; font-size: 9px; }
+#inventory { bottom: 22px; right: 28px; padding: 11px 14px; border-radius: 3px; border-color: #c0c6b32e; background: #17282de8; color: #e1dfce; }
+#inventory span { color: #aeb7a5; font-size: 9px; padding-right: 10px; border-right: 1px solid var(--ui-line); }
+#toast { top: 82px; max-width: min(460px, 88vw); text-align: center; border-radius: 3px; font-size: 12px; line-height: 1.7; background: #eee3cd; box-shadow: 0 6px 24px #071b2633; }
+
+/* Chapter cards use the same paper and brass hierarchy as the in-scene notes. */
+.panel.chapter-menu {
+  width: min(900px, 76vw);
+  padding: clamp(106px, 14vh, 140px) 5vw 34px;
+  background: linear-gradient(90deg, #13262efb 0%, #1c3036f3 67%, #1c303600 100%);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.menu-kicker { margin-bottom: 22px; color: #b4bfb5; font-size: 9px; letter-spacing: .15em; }
+.menu-kicker i { width: 23px; background: #b6a07c; }
+.chapter-menu h1 { font-size: clamp(29px, 2.9vw, 43px); line-height: 1.5; letter-spacing: .035em; }
+.chapter-menu h1 span { color: #d5c1a0; }
+.chapter-menu .intro-copy { line-height: 2.1; color: #adbfb4; font-size: 12px; }
+.chapter-menu .intro-rule { max-width: 660px; margin: 22px 0 0; background: transparent; height: 0; }
+.chapter-list { width: min(660px, 100%); border-color: #d5c7aa35; }
+.menu-chapter { grid-template-columns: 37px minmax(0, 1fr) 210px; gap: 17px; padding: 20px 0; border-color: #d5c7aa26; }
+.chapter-number { align-self: start; padding-top: 7px; font-size: 25px; color: #c4ae89; }
+.chapter-copy .chapter-meta { color: #96a99e; font-size: 8px; line-height: 1.6; }
+.chapter-copy h2 { font-size: 23px; letter-spacing: .07em; line-height: 1.5; margin-bottom: 4px; }
+.chapter-copy>p:last-child { color: #b6c3b7; font-size: 11px; line-height: 1.85; }
+.chapter-modes { gap: 8px; }
+.chapter-modes .chapter-launch { min-height: 59px; padding: 13px 14px 26px; font-size: 12px; }
+.chapter-modes .chapter-launch small { font-size: 9px; left: 14px; bottom: 9px; opacity: .72; letter-spacing: 0; }
+.chapter-modes .secondary { background: #f4e8c508; }
+.menu-chapter.upcoming { grid-template-columns: 37px minmax(0, 1fr) 130px; gap: 17px; padding: 16px 0; opacity: .64; }
+.menu-chapter.upcoming .chapter-number { font-size: 21px; }
+.menu-chapter.upcoming .chapter-copy h2 { font-size: 18px; }
+.menu-chapter.upcoming .chapter-launch { width: 130px; border-color: #b5c0ad2c; background: transparent; min-height: 49px; }
+.menu-shortcuts { width: min(660px, 100%); display: grid; grid-template-columns: auto 1fr; column-gap: 18px; align-items: start; padding-top: 17px; }
+.shortcut-label { grid-column: 1; grid-row: 1 / 3; font-size: 9px; letter-spacing: .12em; color: #7f998c; padding-top: 8px; }
+.tray-preview { grid-column: 2; padding: 5px 0; min-height: 30px; gap: 12px; color: #c8baa0; font-size: 11px; text-align: left; }
+.tray-preview span { font-size: 9px; color: #93aaa0; }
+.explore-preview { color: #ddc49f; font-size: 12px; }
+.tray-preview + .tray-preview { font-size: 10px; padding: 5px 0; color: #9daf9f; }
+.tray-preview + .tray-preview span { color: #7f988d; }
+.menu-note { margin-top: 15px!important; color: #7e998b!important; font-size: 9px; line-height: 1.8; }
+.modal { background: #0d2127ad; backdrop-filter: blur(12px); }
+.modal>div { border: 1px solid #cdbb9b42; border-top-color: #d9c49e70; border-radius: 5px; background: linear-gradient(140deg, #263a3d, #192c33); padding: 34px; box-shadow: 0 20px 70px #00131b55; }
+.modal h2 { font-family: "Songti SC", "Noto Serif CJK SC", serif; font-weight: 400; color: #f0e8d6; }
+.modal p { color: #b9c7b8; line-height: 1.9; }
+.modal .eyebrow { margin-bottom: 20px; color: #c2ad87; }
+#ending.act-end { right: 5vw; bottom: 13vh; width: 320px; padding: 26px 28px; border: 1px solid #d4c3a23d; border-top-color: #cbb38a; border-radius: 4px; background: linear-gradient(140deg, #1a3037ef, #253734eb); backdrop-filter: blur(12px); }
+#ending.act-end h2 { font-size: 28px; line-height: 1.5; }
+#ending.act-end p { font-size: 12px; line-height: 2; color: #bdcbbb; margin: 15px 0 23px; }
+#ending.act-end button { padding: 11px 15px; min-height: 39px; }
+#trayPanel { border-color: #ccb48c4d; border-radius: 4px; background: linear-gradient(125deg, #172a32f5, #263734ed); }
+body[data-tray="true"] #help { display: none!important; }
+body[data-tray="true"] #role { bottom: auto; }
+
+/* Film mode deliberately clears all game HUD surfaces. */
+body[data-film="true"] #toolbar { border: 0; box-shadow: none; backdrop-filter: none; background: transparent; padding: 0; }
+body[data-film="true"] #toolbar button { min-height: 30px; border: 0; }
+body[data-film="true"] #modeSwitch { border-color: transparent!important; }
+body[data-film="true"] #subtitle { border: 0; width: max-content; padding: 0; box-shadow: none; background: transparent; }
+body[data-film="true"] #speaker { margin-bottom: 4px; }
+body[data-film="true"] #line { line-height: 1.7; }
+
+@media (max-width: 1050px) {
+  .wordmark span { display: none; }
+  #modeTag { display: none; }
+  .panel.chapter-menu { width: min(830px, 89vw); }
+}
+@media (max-height: 760px) and (min-width: 721px) {
+  .panel.chapter-menu { padding-top: 92px; padding-bottom: 22px; }
+  .menu-kicker { margin-bottom: 15px; }
+  .chapter-menu h1 { font-size: clamp(29px, 2.75vw, 38px); margin-bottom: 13px; }
+  .chapter-menu .intro-rule { margin-top: 17px; }
+  .menu-chapter { padding: 16px 0; }
+  .menu-chapter.upcoming { padding: 12px 0; }
+  .menu-shortcuts { padding-top: 12px; }
+}
+@media (max-width: 720px) {
+  header { left: 16px; right: 16px; top: 14px; gap: 12px; align-items: center; }
+  .wordmark { font-size: 20px; flex-shrink: 0; }
+  #toolbar { gap: 0; padding: 3px; overflow-x: auto; max-width: calc(100% - 51px); scrollbar-width: none; }
+  #toolbar::-webkit-scrollbar { display: none; }
+  #toolbar button { padding: 7px 8px; min-height: 34px; font-size: 10px; flex-shrink: 0; }
+  .panel.chapter-menu { width: 100%; padding: 88px 6vw 26px; background: linear-gradient(110deg, #142830fc, #1d3339f2); }
+  .chapter-menu h1 { font-size: clamp(27px, 5.6vw, 35px); margin-bottom: 13px; }
+  .menu-kicker { font-size: 8px; margin-bottom: 17px; }
+  .chapter-menu .intro-copy { font-size: 11px; line-height: 1.95; }
+  .chapter-menu .intro-copy br { display: none; }
+  .menu-chapter, .menu-chapter.upcoming { grid-template-columns: 26px minmax(0, 1fr); gap: 12px; padding: 17px 0; }
+  .chapter-number { font-size: 22px; padding-top: 4px; }
+  .chapter-copy h2 { font-size: 22px; }
+  .chapter-copy>p:last-child { font-size: 11px; }
+  .chapter-modes { grid-column: 2; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .chapter-modes .chapter-launch { grid-column: auto; min-height: 76px; padding: 12px 11px 36px; font-size: 12px; }
+  .chapter-modes .chapter-launch small { left: 11px; right: 9px; bottom: 10px; line-height: 1.6; font-size: 9px; }
+  .menu-chapter.upcoming .chapter-launch { grid-column: 2; width: 100%; min-height: 40px; padding: 11px 12px; }
+  .menu-chapter.upcoming .chapter-launch small { position: static; margin-left: 15px; font-size: 9px; }
+  .menu-shortcuts { column-gap: 13px; padding-top: 12px; }
+  .tray-preview { flex-wrap: wrap; column-gap: 8px; row-gap: 3px; padding: 6px 0; }
+  .tray-preview span { display: block; font-size: 9px; }
+  .menu-note { font-size: 9px; }
+  #hud { top: 72px; left: 14px; width: 245px; padding: 13px 15px 12px; }
+  #objective { font-size: 19px; margin: 8px 0 6px; }
+  #instruction { font-size: 11px; line-height: 1.8; }
+  #progress { margin-top: 11px; }
+  #contextAction { margin-top: 12px; }
+  #role { top: auto; bottom: 64px; right: 16px; padding: 7px 9px; font-size: 9px; }
+  #inventory { right: 16px; bottom: 18px; max-width: 56vw; padding: 10px; font-size: 10px; }
+  #help { left: 16px; bottom: 20px; max-width: 38vw; padding: 7px 8px; line-height: 1.6; font-size: 9px; }
+  #subtitle { bottom: 110px; width: calc(100vw - 32px); max-width: none; padding: 15px 18px 12px; }
+  #line { font-size: 14px; line-height: 1.85; }
+  #readOn { min-height: 34px; }
+  #ending.act-end { width: min(330px, calc(100vw - 32px)); right: 16px; bottom: 13vh; padding: 24px; }
+  .modal>div { max-width: calc(100vw - 32px); padding: 27px; max-height: calc(100dvh - 36px); overflow-y: auto; }
+  .chapter-sheet { width: min(480px, calc(100vw - 32px))!important; }
+  .chapter-entry { gap: 10px; }
+  .chapter-entry button { padding: 9px 10px; }
+  #trayPanel { bottom: 16px; padding: 15px 18px; }
+  #toast { top: 68px; }
+}
+@media (max-width: 520px) {
+  #hud { top: 70px; left: 14px; right: 14px; width: auto; max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; padding: 12px 14px; }
+  #chapter, #objective, #instruction, #progress, #modeNote { grid-column: 1 / -1; }
+  #objective { font-size: 19px; margin: 6px 0 5px; }
+  #instruction { font-size: 10px; line-height: 1.75; }
+  #progress { margin-top: 9px; }
+  #contextAction { grid-column: 1; margin-top: 10px; min-height: 42px; padding: 10px 12px; font-size: 11px; }
+  #exploreHint, #inspectNapkin, #balanceOption { grid-column: 2; align-self: end; min-height: 42px; width: auto; padding: 10px 2px 10px 8px; margin: 10px 0 0; font-size: 10px; white-space: nowrap; }
+  #modeNote { font-size: 8px; margin: 7px 0 0; line-height: 1.6; }
+  .target { padding: 11px 12px; font-size: 11px; min-height: 44px; }
+  #role { bottom: 67px; }
+  #inventory { max-width: calc(100vw - 32px); }
+  #help { display: none!important; }
+  #trayPanel label span { font-size: 9px; }
+  .tray-buttons span { display: none; }
+}
+@media (max-height: 540px) and (min-width: 521px) {
+  header { top: 10px; }
+  #hud { top: 65px; left: 16px; width: 230px; padding: 11px 13px; max-height: calc(100dvh - 118px); overflow-y: auto; pointer-events: auto; scrollbar-width: thin; }
+  #objective { font-size: 18px; margin: 6px 0; }
+  #instruction { font-size: 10px; line-height: 1.75; }
+  #modeNote { font-size: 8px; }
+  #contextAction { margin-top: 10px; min-height: 38px; padding: 9px 11px; }
+  #progress { margin-top: 9px; }
+  #role { top: 67px; bottom: auto; }
+  #subtitle { bottom: 55px; max-width: 58vw; padding: 11px 17px; }
+  #line { font-size: 13px; line-height: 1.75; }
+  #help, #inventory { bottom: 11px; }
+  #help { max-width: 44vw; }
+  .menu-kicker { margin-bottom: 12px; }
+  .panel.chapter-menu { padding-top: 75px; }
+  #ending.act-end { bottom: 12vh; padding: 20px 23px; }
+  #trayPanel { bottom: 10px; padding: 10px 16px; width: 360px; left: auto; right: 16px; transform: none; }
+  .tray-heading h2 { font-size: 17px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  button, .target { transition: none!important; }
+  .primary:hover, .chapter-launch:active { transform: none; }
+}
+
+/* The title sequence carries its own wordmark. Keep the live-scene header
+   out of that frame, then let it return automatically when prologue.js adds
+   the hidden attribute. */
+#prologue:not([hidden]) ~ header {
+  visibility: hidden;
+  pointer-events: none;
+}

@@ -14,6 +14,20 @@ try {
   renderer.toneMappingExposure=.79;renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
   $('#game').appendChild(renderer.domElement);
   const world=window.buildGiftWorld(T,scene),a=world.actors,p=world.props;
+  // A local softbox reflection gives metal a surface to reflect. It is only
+  // attached to reflective props; matte skin and walls keep the authored light.
+  if(renderer.capabilities&&T.PMREMGenerator){try{
+    const envCanvas=document.createElement('canvas');envCanvas.width=512;envCanvas.height=256;
+    const ctx=envCanvas.getContext('2d');
+    const wash=ctx.createLinearGradient(0,0,0,256);wash.addColorStop(0,'#393e42');wash.addColorStop(.45,'#797e7b');wash.addColorStop(1,'#252a2c');ctx.fillStyle=wash;ctx.fillRect(0,0,512,256);
+    ctx.fillStyle='#dbe6e6';ctx.fillRect(58,54,64,90);ctx.fillStyle='#b6c7cc';ctx.fillRect(127,54,36,90);
+    ctx.fillStyle='#f6dfb7';ctx.fillRect(292,34,110,20);ctx.fillStyle='#d6c6a8';ctx.fillRect(330,94,60,45);
+    const source=new T.CanvasTexture(envCanvas);source.colorSpace=T.SRGBColorSpace;source.mapping=T.EquirectangularReflectionMapping;
+    const pmrem=new T.PMREMGenerator(renderer),reflection=pmrem.fromEquirectangular(source);source.dispose();pmrem.dispose();
+    scene.traverse(object=>{const materials=Array.isArray(object.material)?object.material:[object.material];materials.filter(Boolean).forEach(material=>{
+      if(material.isMeshStandardMaterial&&material.metalness>.3){material.envMap=reflection.texture;material.envMapIntensity=.38;material.needsUpdate=true;}
+    });});
+  }catch(error){console.warn('Reflection lighting unavailable; keeping direct lighting.');}}
   const nav=GiftCore.createNavigation(world.bounds,world.colliders,.24),story=GiftCore.createStory();
   const ray=new T.Raycaster(),pointer=new T.Vector2(),plane=new T.Plane(new T.Vector3(0,1,0),0);
   const tweens=[],waiters=[],keys=new Set();const focus=new T.Vector3();
@@ -48,9 +62,11 @@ try {
   function wait(seconds){return new Promise(resolve=>waiters.push({at:time+seconds,resolve}));}
   function speak(speaker,line,seconds=4.1){
     if(finishSpeech)finishSpeech();const token=++subtitleToken;speechStarted=time;
+    const speakerActor=speaker==='店员'?a.clerk:speaker==='孩子'?a.child:speaker==='成年后的你'?a.adult:speaker==='顾客'?a.customer:null;
+    if(world.setSpeaking&&speakerActor)world.setSpeaking(speakerActor,true);
     $('#speaker').textContent=speaker;$('#line').textContent=line;visible($('#subtitle'),true);visible($('#readOn'),!demo);
     return new Promise(resolve=>{let finished=false;const entry={at:time+seconds,resolve:done};
-      function done(){if(finished)return;finished=true;const index=waiters.indexOf(entry);if(index>=0)waiters.splice(index,1);
+      function done(){if(finished)return;finished=true;if(world.setSpeaking&&speakerActor)world.setSpeaking(speakerActor,false);const index=waiters.indexOf(entry);if(index>=0)waiters.splice(index,1);
         if(token===subtitleToken){visible($('#subtitle'),false);visible($('#readOn'),false);finishSpeech=null;}resolve();}
       finishSpeech=done;waiters.push(entry);
     });
@@ -77,10 +93,13 @@ try {
   function fitCamera(){
     // Preserve the horizontal framing when the game lives in a narrow app panel.
     camera.aspect=innerWidth/innerHeight;
-    camera.fov=(demo||busy)?2*Math.atan(Math.tan(46*Math.PI/360)*Math.max(1,.85/camera.aspect))*180/Math.PI:2*Math.atan(Math.tan(40*Math.PI/360)*Math.max(1,1.38/camera.aspect))*180/Math.PI;
+    camera.fov=demo?2*Math.atan(Math.tan(46*Math.PI/360)*Math.max(1,.85/camera.aspect))*180/Math.PI:2*Math.atan(Math.tan(40*Math.PI/360)*Math.max(1,1.38/camera.aspect))*180/Math.PI;
     camera.updateProjectionMatrix();
   }
-  function overview(){return demo?Promise.resolve():cameraTo([6.6,5.8,8.7],[-.3,.70,-.08],.75);}
+  function overview(){
+    if(demo||camera.position.distanceTo(new T.Vector3(6.6,5.8,8.7))<.001&&focus.distanceTo(new T.Vector3(-.3,.70,-.08))<.001)return Promise.resolve();
+    return cameraTo([6.6,5.8,8.7],[-.3,.70,-.08],.75);
+  }
   function role(label){$('#roleName').textContent=label;visible($('#role'),!demo&&!busy);}
   const stages={
     buy:{n:1,title:'买一张儿童套餐券',text:'先把这张券买下来。故事还没到取餐的时候。'},
@@ -659,6 +678,7 @@ try {
     const info=observation(object),seated=['sit','sitEat'].includes(active.userData.pose);
     if(exploring()){
       if(!exploreNear(object))return;
+      if(object!==active&&object!==active.userData.held)face(active,pos(object));
       gaze(active,object);world.pose(active,info.pose);
       if(object===a.clerk){gaze(a.clerk,active.userData.head);world.pose(a.clerk,'confirm');}
       await speak(info.speaker,info.line,2.5);gaze(active,null);world.pose(active,'idle');
@@ -698,7 +718,12 @@ try {
   }
   renderer.domElement.addEventListener('pointerdown',e=>{if(!started||demo||busy||paused||finishSpeech||story.stage==='done')return;const hit=pick(e);if(!hit)return;
     if(hit.object)interactObject(hit.object);else if(nav.clear(hit.point.x,hit.point.z)){beginFloorWalk(hit.point);}else toast('桌椅不能穿过，点击空地行走。');});
-  renderer.domElement.addEventListener('pointermove',e=>{cursor={x:e.clientX,y:e.clientY};if(!started||busy||paused||demo||story.stage==='done')return;const hit=pick(e);hoverObject=hit?.object;visible($('#hover'),!!hoverObject);renderer.domElement.style.cursor=hoverObject?'pointer':'default';if(hoverObject){$('#hover').textContent=(objectAction(hoverObject)?.label||observation(hoverObject).label)+' · 点击';$('#hover').style.left=(e.clientX+14)+'px';$('#hover').style.top=(e.clientY+14)+'px';}});
+  let lastHoverAt=-Infinity;
+  function hoverLabel(object){
+    const label=objectAction(object)?.label||observation(object).label;
+    return exploring()&&!exploreNear(object)?'走近 · '+label:label+' · 点击 / E';
+  }
+  renderer.domElement.addEventListener('pointermove',e=>{if(performance.now()-lastHoverAt<45)return;lastHoverAt=performance.now();cursor={x:e.clientX,y:e.clientY};if(!started||busy||paused||demo||story.stage==='done')return;const hit=pick(e);hoverObject=hit?.object;visible($('#hover'),!!hoverObject);renderer.domElement.style.cursor=hoverObject?'pointer':'default';if(hoverObject){$('#hover').textContent=hoverLabel(hoverObject);$('#hover').style.left=Math.min(e.clientX+14,innerWidth-230)+'px';$('#hover').style.top=Math.min(e.clientY+14,innerHeight-45)+'px';}});
   renderer.domElement.addEventListener('pointerleave',()=>visible($('#hover'),false));
   addEventListener('keydown',e=>{if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyE','Escape'].includes(e.code))e.preventDefault();
     if(trayRun&&['KeyA','KeyD','ArrowLeft','ArrowRight','Space'].includes(e.code)){e.preventDefault();if(!paused&&!trayRun.assisted)keys.add(e.code);return;}
@@ -725,6 +750,7 @@ try {
       for(let i=tweens.length-1;i>=0;i--){const tw=tweens[i],t=Math.min(1,(time-tw.at)/tw.d);tw.fn(t);if(t===1){tweens.splice(i,1);tw.resolve();}}
       for(let i=waiters.length-1;i>=0;i--)if(time>=waiters[i].at){const w=waiters.splice(i,1)[0];w.resolve();}
       if(walking&&time>footstepAt){foley('step');footstepAt=time+.37;}updateMovement(dt);updateTray(dt);if(!walking&&!keys.size&&!busy&&active.userData.pose==='walk')world.pose(active,'idle');world.update(dt,time);
+      if(hoverObject&&!busy&&!paused&&!demo)$('#hover').textContent=hoverLabel(hoverObject);
       if(exploring()&&!busy){const key=story.stage+':'+(nearbyExploration()?.label||'')+':'+demo+':'+busy+':'+paused;if(key!==exploreKey)refreshTargets();}
       if(started&&demo&&!busy&&!autoPending&&story.stage!=='done'&&time>autoAt){autoPending=true;perform(async()=>{const action=currentAction();if(action)await action();});}
     }

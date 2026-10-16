@@ -23,7 +23,13 @@
     }
     function mesh(geo, mat, xyz = [0, 0, 0], parent = scene, name = '') {
       const o = new T.Mesh(geo, mat); o.position.set(...xyz); o.name = name;
-      o.castShadow = true; o.receiveShadow = true; parent.add(o); return o;
+      // Fine seams, eyes and printed planes contribute nothing useful to the
+      // room's shadow map, but used to cost a second draw call each frame.
+      if(!geo.boundingBox)geo.computeBoundingBox();
+      const bounds=geo.boundingBox,maxExtent=Math.max(bounds.max.x-bounds.min.x,bounds.max.y-bounds.min.y,bounds.max.z-bounds.min.z);
+      const fineTube=geo.type==='TubeGeometry'&&geo.parameters.radius<.01;
+      o.castShadow = maxExtent>=.08 && geo.type!=='PlaneGeometry' && !fineTube && !mat.transparent;
+      o.receiveShadow = true; parent.add(o); return o;
     }
     function box(w, h, d, xyz, mat = M.cream, parent = scene, name = '') {
       const key='box:'+w+','+h+','+d;let geo=geometryCache.get(key);if(!geo){geo=new T.BoxGeometry(w,h,d);geometryCache.set(key,geo);}return mesh(geo,mat,xyz,parent,name);
@@ -93,9 +99,15 @@
           for(let i=0;i<55;i++){c.fillStyle='rgba(171,154,115,.13)';c.fillRect(random()*w,random()*h,random()*22+1,random()*2+.4);}
         }
         if(mode==='tile'){
-          const edge=c.createLinearGradient(0,0,0,h);edge.addColorStop(0,'rgba(66,60,50,.15)');edge.addColorStop(.05,'rgba(66,60,50,0)');edge.addColorStop(.95,'rgba(66,60,50,0)');edge.addColorStop(1,'rgba(66,60,50,.18)');c.fillStyle=edge;c.fillRect(0,0,w,h);
-          c.strokeStyle='rgba(71,69,54,.12)';c.lineWidth=4;c.strokeRect(1,1,w-2,h-2);
-          for(let i=0;i<12;i++){c.strokeStyle='rgba(89,80,62,.07)';c.beginPath();let x=random()*w,y=random()*h;c.moveTo(x,y);c.lineTo(x+random()*100,y+random()*70);c.stroke();}
+          // Fine aggregate and a barely relieved edge read as commercial stone
+          // tile. Strong dark borders made the entire floor resemble a game grid.
+          for(let i=0;i<1550;i++){
+            const x=random()*w,y=random()*h,r=.45+random()*1.85;
+            c.fillStyle=i%3===0?'rgba(67,65,57,.12)':i%3===1?'rgba(255,250,229,.25)':'rgba(123,117,99,.10)';
+            c.beginPath();c.moveTo(x-r,y);c.lineTo(x+r*.65,y-r);c.lineTo(x+r,y+r*.5);c.lineTo(x-r*.35,y+r);c.closePath();c.fill();
+          }
+          const edge=c.createLinearGradient(0,0,0,h);edge.addColorStop(0,'rgba(66,60,50,.08)');edge.addColorStop(.018,'rgba(66,60,50,0)');edge.addColorStop(.982,'rgba(66,60,50,0)');edge.addColorStop(1,'rgba(66,60,50,.09)');c.fillStyle=edge;c.fillRect(0,0,w,h);
+          c.strokeStyle='rgba(255,250,230,.26)';c.lineWidth=2;c.strokeRect(1,1,w-2,h-2);
         }
       });
     }
@@ -111,12 +123,24 @@
     // The restaurant uses a small, coherent commercial fit-out: oxblood enamel,
     // ivory laminate, glazed tile and brushed aluminium. Domestic wood never
     // carries a large architectural surface.
-    const brandRed=material(0x9f302a,{roughness:.48});
-    const brandDark=material(0x75231f,{roughness:.63});
-    const enamel=material(0xeee8d9,{roughness:.36});
-    const laminate=material(0xe9dfc8,{roughness:.45});
-    const seatRed=material(0x9a3a31,{roughness:.68});
-    const chrome=material(0xa7b1ac,{metalness:.78,roughness:.30});
+    const enamelMap=surfaceTexture('#eee9dd','paint');
+    const redEnamelMap=surfaceTexture('#9f302a','paint');
+    const brandRed=material(0xffffff,{map:redEnamelMap,roughness:.40,bumpMap:redEnamelMap,bumpScale:.0007});
+    const brandDark=material(0x722c27,{roughness:.51});
+    const enamel=material(0xffffff,{map:enamelMap,roughness:.33,bumpMap:enamelMap,bumpScale:.0007});
+    const laminateMap=surfaceTexture('#e4ded0','plaster');
+    const laminate=material(0xffffff,{map:laminateMap,roughness:.42,bumpMap:laminateMap,bumpScale:.0012});
+    const vinylMap=canvasTexture(256,256,(c,w,h)=>{
+      c.fillStyle='#a34337';c.fillRect(0,0,w,h);
+      for(let y=0;y<h;y+=3)for(let x=0;x<w;x+=3){c.fillStyle=(x+y)%2?'rgba(255,228,199,.10)':'rgba(43,24,19,.12)';c.fillRect(x+random(),y+random(),1.4,1.2);}
+    });
+    const seatRed=material(0xffffff,{map:vinylMap,bumpMap:vinylMap,bumpScale:.0015,roughness:.51});
+    const brushedMetalMap=canvasTexture(512,128,(c,w,h)=>{
+      c.fillStyle='#d4d7cf';c.fillRect(0,0,w,h);
+      for(let i=0;i<640;i++){c.fillStyle=i%2?'rgba(255,255,255,.16)':'rgba(54,65,65,.13)';c.fillRect(random()*w,random()*h,28+random()*200,.4+random()*.65);}
+    });
+    const chrome=material(0xffffff,{map:brushedMetalMap,metalness:.58,roughness:.31,bumpMap:brushedMetalMap,bumpScale:.0005});
+    M.metal.map=brushedMetalMap;M.metal.color.set(0xffffff);M.metal.metalness=.56;M.metal.roughness=.38;
     const wallTileMap=canvasTexture(1024,256,(c,w,h)=>{
       c.fillStyle='#e6e2d7';c.fillRect(0,0,w,h);
       for(let row=0;row<4;row++)for(let col=0;col<16;col++){
@@ -134,9 +158,9 @@
     // the two camera-side walls and ceiling, keeping the playable aisle readable.
     const stage = group('Restaurant — 2003');
     round(9.5,.24,8.3,.04,[0,-.23,.1],material(0x68655c),stage);
-    const floor=box(9.2,.1,7.9,[0,-.045,.1],material(0x827c6c),stage,'walkable-floor');
-    const floorMats=['#d5c9b3','#cfc3ad','#d9cdb7'].map(color=>{
-      const tex=surfaceTexture(color,'tile');return material(0xffffff,{map:tex,bumpMap:tex,bumpScale:.007,roughness:.72});
+    const floor=box(9.2,.1,7.9,[0,-.045,.1],material(0xa9a596),stage,'walkable-floor');
+    const floorMats=['#cfc9b9','#cec8b8','#d1cbbb'].map(color=>{
+      const tex=surfaceTexture(color,'tile');return material(0xffffff,{map:tex,bumpMap:tex,bumpScale:.0025,roughness:.61});
     });
     const tileMatrix=new T.Object3D();
     for(let materialIndex=0;materialIndex<3;materialIndex++){
@@ -145,9 +169,25 @@
       tiles.forEach(([ix,iz],i)=>{tileMatrix.position.set(-4.17+ix*.758,.015,-3.45+iz*.784);tileMatrix.rotation.y=((ix+iz)%2)*Math.PI;tileMatrix.updateMatrix();floorBatch.setMatrixAt(i,tileMatrix.matrix);});
       floorBatch.receiveShadow=true;stage.add(floorBatch);
     }
+    // Soft local contact fills the missing indirect occlusion beneath furniture.
+    // These are transparent decals, not geometry or new movement obstacles.
+    const contactMap=canvasTexture(128,128,(c,w,h)=>{
+      const g=c.createRadialGradient(w/2,h/2,0,w/2,h/2,w/2);g.addColorStop(0,'rgba(34,31,27,.62)');g.addColorStop(.35,'rgba(34,31,27,.38)');g.addColorStop(.72,'rgba(34,31,27,.12)');g.addColorStop(1,'rgba(34,31,27,0)');c.fillStyle=g;c.fillRect(0,0,w,h);
+    });
+    function contactPatch(w,d,x,z,opacity=.35){
+      const patch=mesh(new T.PlaneGeometry(w,d),new T.MeshBasicMaterial({map:contactMap,transparent:true,opacity,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}),[x,.024,z],stage,'Furniture contact shadow');
+      patch.rotation.x=-Math.PI/2;patch.castShadow=patch.receiveShadow=false;patch.raycast=()=>{};return patch;
+    }
+    contactPatch(5.60,1.60,1.65,-2.62,.44);
+    contactPatch(2.00,1.26,-2.8,-.4,.40);contactPatch(1.50,1.15,3.15,.65,.36);
+    for(const [x,z] of [[-3.87,-.4],[-1.73,-.45],[3.15,-.08],[3.15,1.38]])contactPatch(.85,.85,x,z,.38);
+    contactPatch(.72,.58,-3.30,1.40,.44);contactPatch(.80,.75,-4.005,3.245,.42);
     box(9.2,3.3,.21,[0,1.64,-3.86],M.cream,stage);
     box(9.2,1.03,.19,[0,.515,-3.72],wallTile,stage);
     box(9.2,.085,.225,[0,1.045,-3.695],brandRed,stage);
+    // A narrow satin trim is typical of a fitted restaurant interior. Its
+    // restrained highlight gives the long back wall a deliberate visual rhythm.
+    box(9.14,.018,.012,[0,1.103,-3.589],chrome,stage);
     box(9.2,.115,.235,[0,.057,-3.69],chrome,stage);
     box(9.25,.18,.32,[0,3.25,-3.8],brandRed,stage);
     box(9.2,.09,.018,[0,.79,-3.615],brandRed,stage);
@@ -267,11 +307,15 @@
     round(.65,.40,.95,.012,[-.55,.215,-.15],brandDark,counter);
     round(.65,.055,.95,.009,[-.55,.823,-.15],brandRed,counter);
     round(5.27,.13,1.39,.025,[0,.92,0],enamel,counter);
+    round(5.17,.015,.016,.004,[0,.964,.688],chrome,counter);
     box(5.18,.09,.03,[0,.17,.645],chrome,counter);
     box(5.18,.025,.03,[0,.80,.645],brandDark,counter);
     // Broad white panels and numbered service positions read across the room.
     for(const x of [-1.69,0,1.69]){
       round(1.60,.50,.022,.012,[x,.49,.645],enamel,counter);
+      for(const side of [-1,1]){
+        const screw=cylinder(.008,.008,.004,[x+side*.746,.705,.659],chrome,counter,10);screw.rotation.x=Math.PI/2;
+      }
     }
     const counterBrand=plane(1.38,.36,[0,.49,.665],textTexture('小岛汉堡','XIAODAO · SINCE 1998','#eee8d9','#a2352b'),counter);
     const pickup=plane(1.16,.29,[-1.69,.49,.665],textTexture('取 餐','PICK UP','#eee8d9','#a2352b'),counter);
@@ -294,6 +338,7 @@
     round(.60,.025,.42,.012,[0,-.018,-.015],enamel,lostProperty);
     for(const x of [-.22,.22])line([[x,-.18,-.05],[x,-.035,.12],[x,-.035,-.17]],.009,chrome,lostProperty);
     const returnTrayMaterial=material(0xadb3a5,{metalness:.30,roughness:.54});
+    returnTrayMaterial.map=brushedMetalMap;returnTrayMaterial.bumpMap=brushedMetalMap;returnTrayMaterial.bumpScale=.0005;
     round(.49,.018,.30,.009,[0,.006,.055],returnTrayMaterial,lostProperty);
     for(const x of [-.244,.244])round(.018,.045,.30,.006,[x,.025,.055],returnTrayMaterial,lostProperty);
     round(.49,.045,.018,.005,[0,.025,-.094],returnTrayMaterial,lostProperty);
@@ -386,8 +431,14 @@
     });
     illuminatedPanel(2.23,1.10,[-2.98,2.48,-3.69],shopIdentity,stage);
     round(4.83,.66,.045,.012,[1.45,1.42,-3.59],chrome,stage);
+    for(const x of [-.88,.28,1.45,2.62,3.78]){
+      box(.008,.60,.004,[x,1.42,-3.563],material(0x76817b,{roughness:.50}),stage);
+    }
     box(4.79,.035,.018,[1.45,1.72,-3.56],enamel,stage);
     round(3.7,.09,.48,.02,[1.05,1.05,-3.43],M.metal,stage);
+    // The prep shelf has a folded front edge and brackets instead of floating.
+    round(3.68,.065,.018,.006,[1.05,1.006,-3.185],chrome,stage);
+    for(const x of [-.58,.86,2.58])line([[x,.96,-3.61],[x,.84,-3.59],[x,1.01,-3.23]],.012,chrome,stage);
     const takeawayBags=group('Ready for pickup paper bags',[-.55,1.02,-3.10],stage);
     for(let i=0;i<2;i++){
       const bag=group('Paper takeaway bag',[i*.29,0,0],takeawayBags);
@@ -483,6 +534,7 @@
       round(.55,.47,.065,.025,[0,.755,-.215],enamel,g);
       round(.50,.40,.048,.025,[0,.765,-.172],seatRed,g);
       for(const x of [-.15,0,.15])box(.005,.33,.004,[x,.765,-.145],brandDark,g);
+      line([[-.225,.446,-.20],[-.225,.462,.18],[0,.465,.23],[.225,.462,.18],[.225,.446,-.20]],.0026,brandDark,g);
       return g;
     }
     const table = props.table = group('Window table',[-2.8,0,-.4],stage);
@@ -611,10 +663,25 @@
     const burger=props.burger=group('Burger',[-.22,.05,.02],meal);burger.userData.isFood=true;
     // A normal single-serving burger: keep the tray and handover sockets stable.
     burger.scale.setScalar(.65);
-    const bun=material(0xd9903e,{roughness:.66}), patty=material(0x613526,{roughness:.92}), cheese=material(0xf3c442,{roughness:.57}), tomato=material(0xc95938,{roughness:.64});
+    const bunMap=canvasTexture(512,256,(c,w,h)=>{
+      const colour=c.createLinearGradient(0,0,0,h);colour.addColorStop(0,'#dfab64');colour.addColorStop(.34,'#d79844');colour.addColorStop(.68,'#bf792f');colour.addColorStop(1,'#ebba73');c.fillStyle=colour;c.fillRect(0,0,w,h);
+      for(let i=0;i<7500;i++){c.fillStyle=i%3?'rgba(91,49,20,.10)':'rgba(255,226,162,.18)';const r=.3+random()*1.2;c.beginPath();c.ellipse(random()*w,random()*h,r,r*.65,0,0,Math.PI*2);c.fill();}
+    });
+    const pattyMap=canvasTexture(256,256,(c,w,h)=>{
+      c.fillStyle='#683b27';c.fillRect(0,0,w,h);
+      for(let i=0;i<2000;i++){c.fillStyle=i%2?'rgba(32,18,13,.29)':'rgba(179,115,57,.22)';c.beginPath();c.ellipse(random()*w,random()*h,.6+random()*3,.5+random()*2,random()*6.28,0,Math.PI*2);c.fill();}
+    });
+    const bun=material(0xffffff,{map:bunMap,bumpMap:bunMap,bumpScale:.0014,roughness:.73}), patty=material(0xffffff,{map:pattyMap,bumpMap:pattyMap,bumpScale:.002,roughness:.87}), cheese=material(0xe9b937,{roughness:.49}), tomato=material(0xb84d30,{roughness:.42});
     cylinder(.177,.165,.066,[0,.043,0],bun,burger,64).userData.foodLayer=true;
     cylinder(.169,.177,.042,[0,.09,0],patty,burger,64).userData.foodLayer=true;
     const cheeseSlice=mesh(new T.BoxGeometry(.335,.015,.335,24,1,24),cheese,[0,.118,0],burger);cheeseSlice.userData.foodLayer=true;
+    // Soft sag at the corners of the same biteable mesh reads as melted cheese.
+    const cheeseVertices=cheeseSlice.geometry.attributes.position;
+    for(let i=0;i<cheeseVertices.count;i++){
+      const x=cheeseVertices.getX(i),z=cheeseVertices.getZ(i),corner=Math.max(0,Math.abs(x)+Math.abs(z)-.24);
+      cheeseVertices.setY(i,cheeseVertices.getY(i)-corner*.15);
+    }
+    cheeseVertices.needsUpdate=true;cheeseSlice.geometry.computeVertexNormals();
     cylinder(.161,.165,.018,[0,.14,0],tomato,burger,64).userData.foodLayer=true;
     // Two small onion arcs and a few darker grill marks give the first bite a
     // recognisable, hand-made texture at the close camera distance.
@@ -709,7 +776,18 @@
       cylinder(.056,.065,.15,[0,1.395,-.005],skin,body);
       const collar=mesh(new T.TorusGeometry(.068,.014,8,32),tee,[0,1.362,.002],body);collar.rotation.x=Math.PI/2;collar.scale.z=.7;
       const head=group('head',[0,child?1.59:1.57,0],body);if(!child)head.scale.setScalar(.88);
-      mesh(headGeometry(child),skin,[0,0,0],head,'Sculpted face');
+      const faceGeometry=headGeometry(child),facePositions=faceGeometry.attributes.position,faceColors=[];
+      const faceColor=new T.Color(),cheekColor=new T.Color(0xd4a594),baseFace=new T.Color(0xffffff);
+      for(let i=0;i<facePositions.count;i++){
+        const x=facePositions.getX(i),y=facePositions.getY(i),z=facePositions.getZ(i);
+        const cheeks=Math.exp(-((Math.abs(x)-.082)**2/.0012+(y+.035)**2/.0014))*Math.max(0,z/.13)*.38;
+        const jaw=Math.max(0,-y-.07)*.35;
+        faceColor.copy(baseFace).lerp(cheekColor,cheeks).multiplyScalar(1-jaw);
+        faceColors.push(faceColor.r,faceColor.g,faceColor.b);
+      }
+      faceGeometry.setAttribute('color',new T.Float32BufferAttribute(faceColors,3));
+      const faceMaterial=skin.clone();faceMaterial.vertexColors=true;faceMaterial.roughness=.82;
+      mesh(faceGeometry,faceMaterial,[0,0,0],head,'Sculpted face');
       for(const side of [-1,1]){
         const ear=group('ear',[side*(child?.144:.132),-.006,-.012],head);
         sphere(.030,[0,0,0],skin,ear,[.50,1,.71]);
@@ -756,8 +834,9 @@
       }
       line([[0,-.052,.128],[0,-.070,.116]],.0025,skinShadow,head);
       const mouth=group('mouth',[0,-.086,.111],head);
-      line([[-.026,0,-.003],[-.010,.002,.004],[0,0,.005],[.010,.002,.004],[.026,0,-.003]],.003,lipMat,mouth);
-      line([[-.020,-.005,-.001],[0,-.008,.003],[.020,-.005,-.001]],.0025,material(0xc49279,{roughness:.95}),mouth);
+      const mouthOpening=sphere(.018,[0,-.003,.001],material(0x704e44,{roughness:1}),mouth,[1,.035,.10]);mouthOpening.castShadow=false;
+      const upperLip=line([[-.026,0,-.003],[-.010,.002,.004],[0,0,.005],[.010,.002,.004],[.026,0,-.003]],.003,lipMat,mouth);
+      const lowerLip=line([[-.020,-.005,-.001],[0,-.008,.003],[.020,-.005,-.001]],.0025,material(0xc49279,{roughness:.95}),mouth);
       const legs=[],arms=[],knees=[],elbows=[],palms=[],fingers=[];
       for(const side of [-1,1]){
         const leg=group(side<0?'left leg':'right leg',[side*.099,.84,0],body);
@@ -827,7 +906,7 @@
         line([[.018,1.16,.123],[.018,.86,.108]],.003,seam,body);
         for(let i=0;i<3;i++)cylinder(.008,.008,.008,[.024,.94+i*.087,.117],M.edge,body,10).rotation.x=Math.PI/2;
       }
-      actor.userData={kind,body,head,arms,legs,knees,elbows,eyes,pupils,brows,mouth,palms,fingers,hand,carrySocket,pose:'idle',poseElapsed:0,gaze:null,phase:random()*6.28};
+      actor.userData={kind,body,head,arms,legs,knees,elbows,eyes,pupils,brows,mouth,mouthOpening,upperLip,lowerLip,speaking:false,speechWeight:0,speechTime:0,palms,fingers,hand,carrySocket,pose:'idle',poseElapsed:0,gaze:null,phase:random()*6.28};
       const shadowTex=canvasTexture(64,64,(c,w,h)=>{const g=c.createRadialGradient(32,32,1,32,32,32);g.addColorStop(0,'rgba(26,28,24,.30)');g.addColorStop(.48,'rgba(26,28,24,.12)');g.addColorStop(1,'rgba(26,28,24,0)');c.fillStyle=g;c.fillRect(0,0,w,h);});
       const shadow=mesh(new T.PlaneGeometry(.69,.55),new T.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false}),[0,.027,0],actor);shadow.rotation.x=-Math.PI/2;shadow.castShadow=false;
       return actor;
@@ -872,13 +951,13 @@
     const mat=round(1.15,.024,.76,.009,[2.55,.029,2.85],M.darkTeal,stage);
     const matPrint=plane(.96,.40,[2.55,.043,2.85],textTexture('欢迎光临','请留意脚下','#3e5047','#a2a28b'),stage);matPrint.rotation.x=-Math.PI/2;
 
-    const ambient=new T.HemisphereLight(0xb3cbd5,0x655b50,1.14);scene.add(ambient);
-    const sun=new T.DirectionalLight(0xc2d7df,1.55);sun.position.set(-6,4.8,1.4);sun.castShadow=true;
+    const ambient=new T.HemisphereLight(0xc2cfd2,0x6c5d4e,1.20);scene.add(ambient);
+    const sun=new T.DirectionalLight(0xd2e0e1,1.55);sun.position.set(-6,5.8,1.4);sun.castShadow=true;
     sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-7;sun.shadow.camera.right=7;sun.shadow.camera.top=7;sun.shadow.camera.bottom=-7;
-    sun.shadow.normalBias=.025;sun.shadow.bias=-.00015;scene.add(sun);
+    sun.shadow.normalBias=.022;sun.shadow.bias=-.00015;sun.shadow.radius=3;scene.add(sun);
     const fill=new T.DirectionalLight(0xffddaf,.57);fill.position.set(4,5,4);scene.add(fill);
     // A cool window bounce separates actors from the warm commercial interior.
-    const windowBounce=new T.DirectionalLight(0xa0c4d7,.59);windowBounce.position.set(-6,2.6,1.8);scene.add(windowBounce);
+    const windowBounce=new T.DirectionalLight(0xb7cdd5,.59);windowBounce.position.set(-6,2.6,1.8);scene.add(windowBounce);
 
     let stowAnimation=null,moodTarget=0,moodValue=0,staffMealRecorded=false;
     function recordStaffMeal(){
@@ -886,6 +965,7 @@
       const slip=plane(.18,.26,[1.62,1.018,-2.91],textTexture('员工餐','10 / 18    1 份', '#dfd6bf','#6e6858'),stage);slip.rotation.x=-Math.PI/2;slip.rotation.z=.09;props.staffMealTicket=slip;
       return slip;
     }
+    function setSpeaking(actor,on){if(actor?.userData)actor.userData.speaking=!!on;}
     function setMood(stageName){moodTarget=stageName==='ending'||stageName==='meal'||stageName==='warm'?1:0;}
     function stowCoupon(object=props.coupon){
       if(!object)return;
@@ -1015,6 +1095,7 @@
       Object.values(actors).forEach(actor=>{
         const d=actor.userData,p=d.pose,t=time+d.phase;
         d.poseElapsed+=Math.min(dt,.1);d.ikUsed=[false,false];
+        d.speechTime+=Math.min(dt,.1);d.speechWeight=T.MathUtils.lerp(d.speechWeight,d.speaking?1:0,1-Math.exp(-dt*15));
         d.arms.forEach(arm=>{arm.rotation.y=T.MathUtils.lerp(arm.rotation.y,0,blend);});
         d.elbows.forEach(elbow=>{elbow.rotation.y=T.MathUtils.lerp(elbow.rotation.y,0,blend);elbow.rotation.z=T.MathUtils.lerp(elbow.rotation.z,0,blend);});
         const age=d.poseElapsed;
@@ -1099,6 +1180,7 @@
           }
         }
         if(p==='confirm')pitch+=Math.sin(Math.min(age/1.1,1)*Math.PI)*.105;
+        pitch+=d.speechWeight*Math.sin(d.speechTime*2.7+d.phase)*.014;
         d.head.rotation.x=T.MathUtils.lerp(d.head.rotation.x,pitch,blend*.55);
         d.head.rotation.y=T.MathUtils.lerp(d.head.rotation.y,yaw,blend*.55);
         d.head.rotation.z=T.MathUtils.lerp(d.head.rotation.z,Math.sin(t*.8)*.008,blend);
@@ -1108,6 +1190,9 @@
         d.brows.forEach((brow,i)=>{brow.rotation.z=T.MathUtils.lerp(brow.rotation.z,concern?(i?-.10:.10):warm?(i?.035:-.035):0,blend*.55);brow.position.y=T.MathUtils.lerp(brow.position.y,.053+(concern?.003:0),blend);});
         d.mouth.rotation.z=T.MathUtils.lerp(d.mouth.rotation.z,warm?-.015:0,blend*.5);
         d.mouth.scale.y=T.MathUtils.lerp(d.mouth.scale.y,warm?.70:1,blend*.5);
+        const syllable=d.speechWeight*Math.max(0,Math.sin(d.speechTime*17))*(.45+.55*Math.abs(Math.sin(d.speechTime*5.7)));
+        d.mouthOpening.scale.y=.035+syllable*.24;
+        d.upperLip.position.y=syllable*.0018;d.lowerLip.position.y=-syllable*.0045;
         d.pupils.forEach(pupil=>{pupil.position.x=T.MathUtils.lerp(pupil.position.x,T.MathUtils.clamp(yaw-d.head.rotation.y,-.24,.24)*.010,blend*1.4);pupil.position.y=T.MathUtils.lerp(pupil.position.y,T.MathUtils.clamp(-pitch+d.head.rotation.x,-.2,.2)*.010,blend*1.4);});
         if(d.held?.userData.isFood||d.held?.userData.isCoins){
           // The palm supports the bun; the food stays upright as shoulder and elbow bend.
@@ -1130,6 +1215,6 @@
       rain.children.forEach((drop,i)=>{drop.position.y=((drop.userData.baseY-time*(.025+(i%3)*.011))%1.98+1.98)%1.98;});
     }
     pose(actors.child,'shy');
-    return {actors,props,colliders,bounds:{minX:-4.05,maxX:4.05,minZ:-1.75,maxZ:3.65},floor,update,pose,lookAt,hold,release,setTrayBalance,bite,stowCoupon,setLostPropertyActive,setMood,recordStaffMeal,setView};
+    return {actors,props,colliders,bounds:{minX:-4.05,maxX:4.05,minZ:-1.75,maxZ:3.65},floor,update,pose,lookAt,hold,release,setTrayBalance,bite,stowCoupon,setLostPropertyActive,setMood,setSpeaking,recordStaffMeal,setView};
   };
 })();
