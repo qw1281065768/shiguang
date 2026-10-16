@@ -23,6 +23,7 @@ try {
   const dropZone={x:-2.75,z:2.02,radius:.48};
   let bought=false,lastCustomerLeft=false,pendingMode=null,seatTransition=null;
   let choiceMemory=null;
+  let trayRun=null;
   const diningSeat=new T.Vector3(-1.73,.09,-.45),chairApproach={x:-1.09,z:-.45};
   // The scene must not begin while a reviewed GLB is still popping into place.
   // Keep the fallback procedural prop visible if loading fails, but make the
@@ -88,7 +89,7 @@ try {
     adult:{n:2,title:'把券放到书包旁',text:'把它放在他看得见、也能自己决定的地方。'},
     child:{n:3,title:'书包旁边，有一张券',text:'走近书包，看看这张突然出现的餐券。'},
     return:{n:4,title:'去问一问店员',text:'把餐券交给柜台，请店员替失主收好。'},
-    meal:{n:5,title:'把餐端到窗边',text:'把店员送的热餐端到窗边，坐下来慢慢吃。'},
+    meal:{n:5,title:'把餐端到窗边',text:'试着扶稳餐盘走到窗边。可以停一步，也可以让镜头帮你端过去。'},
     eat:{n:6,title:'打开纸盒',text:'坐在窗边打开餐盒，再亲手决定什么时候吃第一口。'},
     leave:{n:2,title:'雨还没有停',text:'现在可以控制孩子，看看店里的物件。想接着走餐券的故事，随时回到拿券的时候，不必重买。'},
     done:{n:6,title:'第一幕 · 窗边的位置',text:'这一幕停在这里。你可以留下，或回到章节档案。'}
@@ -172,6 +173,10 @@ try {
   async function requestMode(){
     if(!started||endingReady)return;
     const next=!(pendingMode===null?demo:pendingMode);
+    if(trayRun){
+      pendingMode=next===demo?null:next;
+      trayRun.assisted=pendingMode===true;clearTrayInput();modeUI();return;
+    }
     if(busy||paused||finishSpeech){pendingMode=next===demo?null:next;modeUI();return;}
     busy=true;cancelWalk();applyMode(next);await endAction();
   }
@@ -350,8 +355,10 @@ try {
   }
   async function carryMeal(){
     if(story.stage!=='meal')return;
-    await shot([.7,1.8,2.6],[-2.25,.92,-.10]);
-    if(!await walk(a.child,{x:-2.65,z:.8},1.35))return;
+    if(demo){
+      await shot([.7,1.8,2.6],[-2.25,.92,-.10]);
+      if(!await walk(a.child,{x:-2.65,z:.8},1.35))return;
+    }else if(!await balanceTray())return;
     face(a.child,p.table.position);world.pose(a.child,'carry');
     const from=pos(p.meal),to=new T.Vector3(-2.65,.84,-.30);world.release(p.meal);
     await tween(.75,t=>{p.meal.position.lerpVectors(from,to,ease(t));p.meal.rotation.y*=1-t;});p.meal.rotation.set(0,0,0);foley('tray');
@@ -359,6 +366,71 @@ try {
     if(!await sitAtTable())return;
     await shot([-3.9,1.58,.9],[-2.15,.98,-.35]);
     advance('eat');await wait(.6);
+  }
+  function clearTrayInput(){
+    keys.clear();
+    if(trayRun){trayRun.axis=0;trayRun.resting=false;}
+    $('#traySteer').value='0';$('#trayRest').setAttribute('aria-pressed','false');
+  }
+  function assistTray(){if(!trayRun||paused)return;trayRun.assisted=true;clearTrayInput();}
+  $('#trayAssist').onclick=assistTray;
+  $('#trayRest').onclick=()=>{if(trayRun&&!paused&&!trayRun.assisted){trayRun.resting=!trayRun.resting;$('#trayRest').setAttribute('aria-pressed',String(trayRun.resting));}};
+  $('#traySteer').addEventListener('input',e=>{if(trayRun&&!paused&&!trayRun.assisted)trayRun.axis=Number(e.target.value)/100;});
+  for(const event of ['change','pointerup','pointercancel','blur'])$('#traySteer').addEventListener(event,()=>{
+    if(trayRun)trayRun.axis=0;$('#traySteer').value='0';
+  });
+  function trayCamera(dt=0){
+    const actor=a.child,angle=actor.rotation.y;
+    const forward=new T.Vector3(Math.sin(angle),0,Math.cos(angle)),right=new T.Vector3(forward.z,0,-forward.x);
+    const look=actor.position.clone().addScaledVector(forward,.72);look.y=.36;
+    const eye=actor.position.clone().addScaledVector(forward,-.72).addScaledVector(right,.95);eye.y=2.15;
+    const blend=dt?1-Math.exp(-dt*4):1;
+    camera.position.lerp(eye,blend);focus.lerp(look,blend);camera.lookAt(focus);
+  }
+  async function balanceTray(){
+    // Movement uses the restaurant's actual collision-safe path. Balance is
+    // independent of story progression: a wobble stops feet, never removes food.
+    const path=nav.route(a.child.position,{x:-2.65,z:.8});
+    if(!path)return false;
+    let total=0,previous=a.child.position;
+    for(const point of path){total+=distance(previous,point);previous=point;}
+    cancelWalk();gaze(a.child,p.meal);clearTrayInput();
+    face(a.child,path[0]);world.pose(a.child,'carry');trayCamera();
+    visible($('#inventory'),false);visible($('#toast'),false);visible($('#trayPanel'),true);
+    $('body').setAttribute('data-tray','true');$('#traySteer').disabled=false;$('#trayRest').disabled=false;
+    const result=await new Promise(resolve=>{
+      trayRun={path,index:0,total,covered:0,model:GiftBalance.create(),axis:0,resting:false,assisted:pendingMode===true,resolve,lastCatches:0};
+    });
+    clearTrayInput();trayRun=null;visible($('#trayPanel'),false);$('body').setAttribute('data-tray','false');
+    world.setTrayBalance(a.child,{roll:0,pitch:0,slip:0});world.pose(a.child,'carry');
+    return result;
+  }
+  function updateTray(dt){
+    const run=trayRun;if(!run)return;
+    const actor=a.child,goal=run.path[run.index],v=actor.position;
+    const dx=goal.x-v.x,dz=goal.z-v.z,len=Math.hypot(dx,dz),desired=Math.atan2(dx,dz);
+    const angle=Math.atan2(Math.sin(desired-actor.rotation.y),Math.cos(desired-actor.rotation.y));
+    const axis=keys.has('KeyD')||keys.has('ArrowRight')?1:keys.has('KeyA')||keys.has('ArrowLeft')?-1:run.axis;
+    const rest=run.resting||keys.has('Space');
+    const state=run.model.step(dt,{axis,resting:rest,assisted:run.assisted,turn:T.MathUtils.clamp(angle,-1,1)});
+    const travel=Math.min(len,(run.assisted?.85:.24)*state.speed*dt);
+    if(travel>0){
+      v.x+=dx/len*travel;v.z+=dz/len*travel;run.covered+=travel;
+      actor.rotation.y+=angle*Math.min(1,dt*3.5);
+      if(actor.userData.pose!=='walk')world.pose(actor,'walk');
+      if(time>footstepAt){foley('step');footstepAt=time+.62;}
+    }else if(actor.userData.pose!=='carry')world.pose(actor,'carry');
+    world.setTrayBalance(actor,{roll:state.roll*.8,pitch:state.pitch,slip:state.slip});trayCamera(dt);
+    if(state.catches>run.lastCatches){run.lastCatches=state.catches;foley('tray');}
+    const text=run.assisted?'放慢脚步，稳稳地端过去。':state.recovering?'先停一下。扶稳了，再走。':rest?'停稳了。松开空格，或点「继续走」。':state.elapsed<2.5?'左右拖动扶稳餐盘，也可以用 A / D。':Math.abs(state.roll)>.12?(state.roll>0?'轻轻向右扶，把餐盘放平。':'轻轻向左扶，把餐盘放平。'):'稳住。窗边就在前面。';
+    if($('#trayStatus').textContent!==text)$('#trayStatus').textContent=text;
+    $('#trayPanel').setAttribute('data-recovering',String(state.recovering));
+    $('#trayNeedle').style.transform='translateX(-50%) rotate('+(state.roll*180/Math.PI)+'deg)';
+    $('#trayProgress').value=Math.min(1,run.covered/run.total);
+    $('#trayRest').textContent=run.resting?'继续走':'停一步';
+    $('#trayRest').disabled=run.assisted;$('#traySteer').disabled=run.assisted;$('#trayAssist').disabled=run.assisted;
+    $('#trayAssist').textContent=run.assisted?'正在帮你端过去…':'帮我端过去';
+    if(len<=travel+.00001){run.index++;if(run.index===run.path.length){run.resolve(true);trayRun=null;}}
   }
   async function sitAtTable(){
     if(distance(a.child.position,diningSeat)<.05&&['sit','sitEat'].includes(a.child.userData.pose))return true;
@@ -449,7 +521,7 @@ try {
     a.adult.visible=true;active=a.adult;world.pose(a.adult,'idle');face(a.adult,a.child.position);
     role('成年后的你');advance('buy');await endAction();autoAt=time+1;
   }
-  async function start(auto){
+  async function start(auto,excerpt=false){
     if(started)return;
     started=true;demo=auto;visible($('#intro'),false);visible($('#toolbar'),true);
     busy=true;modeUI();hud();fitCamera();
@@ -465,12 +537,22 @@ try {
       // an intentional playable cinematic, so it must be visible while its
       // dialogue and character blocking run.
       visible($('#loading'),false);
-      await establish();
+      if(excerpt){
+        // A visible chapter excerpt, also useful for replaying the skill segment.
+        // Its setup preserves the returned voucher and the independent staff meal.
+        a.adult.visible=false;a.customer.visible=false;lastCustomerLeft=true;bought=true;active=a.child;
+        a.child.position.set(.3,0,-.8);role('小时候的你');
+        for(const stage of ['buy','choice','adult','child','return'])advance(stage);
+        await shot([3.15,2.05,-.05],[.55,1.2,-1.85]);
+        world.stowCoupon(p.coupon);world.recordStaffMeal();await wait(1.6);
+        world.hold(a.child,p.meal);world.setMood('meal');advance('meal');
+        await carryMeal();await endAction();
+      }else await establish();
     }catch(error){
       console.error(error);toast('加载故事时遇到了问题，请重新开始。',10);busy=false;
     }finally{visible($('#loading'),false);}
   }
-  function setPause(value){if(!started||endingReady)return;paused=value;keys.clear();visible($('#pausePanel'),value);$('#pause').textContent=value?'继续':'暂停';$('#pause').setAttribute('aria-label',value?'继续':'暂停');refreshTargets();if(!value&&!busy&&pendingMode!==null){busy=true;applyMode(pendingMode);endAction();}if(ambientGain)ambientGain.gain.setTargetAtTime(value?0:soundEnabled?.035:0,audioCtx.currentTime,.2);}
+  function setPause(value){if(!started||endingReady)return;paused=value;clearTrayInput();visible($('#pausePanel'),value);$('#pause').textContent=value?'继续':'暂停';$('#pause').setAttribute('aria-label',value?'继续':'暂停');refreshTargets();if(!value&&!busy&&pendingMode!==null){busy=true;applyMode(pendingMode);endAction();}if(ambientGain)ambientGain.gain.setTargetAtTime(value?0:soundEnabled?.035:0,audioCtx.currentTime,.2);}
   function initSound(){if(audioCtx)return;audioCtx=new (window.AudioContext||window.webkitAudioContext)();
     const buffer=audioCtx.createBuffer(1,audioCtx.sampleRate*3,audioCtx.sampleRate),data=buffer.getChannelData(0);let smooth=0;
     for(let i=0;i<data.length;i++){smooth=(smooth+Math.random()*.2-.1)/1.04;data[i]=smooth*2.5;}
@@ -493,6 +575,7 @@ try {
   $('#sound').onclick=()=>{try{initSound();audioCtx.resume();soundEnabled=!soundEnabled;ambientGain.gain.setTargetAtTime(soundEnabled&&!paused?.035:0,audioCtx.currentTime,.3);$('#sound').textContent='声音 '+(soundEnabled?'开':'关');$('#sound').setAttribute('aria-label',soundEnabled?'关闭声音':'打开声音');}catch(e){toast('当前浏览器无法播放声音。');}};
   // Both launch buttons enter the same story state machine.
   $('#play').onclick=()=>start(false);$('#demo').onclick=()=>start(true);
+  $('#tryTray').onclick=()=>start(false,true);
   $('#pause').onclick=()=>setPause(!paused);$('#resume').onclick=()=>setPause(false);
   for(const id of ['restart','pauseRestart','again'])$('#'+id).onclick=()=>location.reload();
   function showChapters(){visible($('#ending'),false);visible($('#hud'),false);visible($('#chapterPanel'),true);}
@@ -598,10 +681,11 @@ try {
   renderer.domElement.addEventListener('pointermove',e=>{cursor={x:e.clientX,y:e.clientY};if(!started||busy||paused||demo||story.stage==='done')return;const hit=pick(e);hoverObject=hit?.object;visible($('#hover'),!!hoverObject);renderer.domElement.style.cursor=hoverObject?'pointer':'default';if(hoverObject){$('#hover').textContent=(objectAction(hoverObject)?.label||observation(hoverObject).label)+' · 点击';$('#hover').style.left=(e.clientX+14)+'px';$('#hover').style.top=(e.clientY+14)+'px';}});
   renderer.domElement.addEventListener('pointerleave',()=>visible($('#hover'),false));
   addEventListener('keydown',e=>{if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyE','Escape'].includes(e.code))e.preventDefault();
+    if(trayRun&&['KeyA','KeyD','ArrowLeft','ArrowRight','Space'].includes(e.code)){e.preventDefault();if(!paused&&!trayRun.assisted)keys.add(e.code);return;}
     if(e.repeat)return;if(e.code==='Escape')return setPause(!paused);if(e.code==='Space'&&finishSpeech&&!demo){e.preventDefault();return readOn();}if(!started||busy||paused||finishSpeech||demo||story.stage==='done')return;
     if(e.code==='KeyE')return perform(currentAction());
     if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){cancelWalk();keys.add(e.code);if(['sit','sitEat'].includes(active.userData.pose)){busy=true;refreshTargets();leaveSeat(active).then(endAction);}}});
-  addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',()=>keys.clear());
+  addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',()=>{clearTrayInput();if(trayRun)setPause(true);});
   const markerMaterial=new T.MeshBasicMaterial({color:0xf5c57d,transparent:true,opacity:.8,side:T.DoubleSide,depthWrite:false});
   const moveMarker=new T.Mesh(new T.RingGeometry(.15,.19,36),markerMaterial);moveMarker.rotation.x=-Math.PI/2;scene.add(moveMarker);moveMarker.visible=false;
   const goalMarker=new T.Mesh(new T.RingGeometry(.32,.365,48),markerMaterial.clone());goalMarker.rotation.x=-Math.PI/2;scene.add(goalMarker);goalMarker.visible=false;
@@ -620,7 +704,7 @@ try {
     if(!paused){time+=dt;
       for(let i=tweens.length-1;i>=0;i--){const tw=tweens[i],t=Math.min(1,(time-tw.at)/tw.d);tw.fn(t);if(t===1){tweens.splice(i,1);tw.resolve();}}
       for(let i=waiters.length-1;i>=0;i--)if(time>=waiters[i].at){const w=waiters.splice(i,1)[0];w.resolve();}
-      if(walking&&time>footstepAt){foley('step');footstepAt=time+.37;}updateMovement(dt);if(!walking&&!keys.size&&!busy&&active.userData.pose==='walk')world.pose(active,'idle');world.update(dt,time);
+      if(walking&&time>footstepAt){foley('step');footstepAt=time+.37;}updateMovement(dt);updateTray(dt);if(!walking&&!keys.size&&!busy&&active.userData.pose==='walk')world.pose(active,'idle');world.update(dt,time);
       if(started&&demo&&!busy&&!autoPending&&story.stage!=='done'&&time>autoAt){autoPending=true;perform(async()=>{if(choosing())await chooseKeep();else{const action=currentAction();if(action)await action();}});}
     }
     activeMarker.visible=started&&!demo&&!busy&&!paused&&story.stage!=='done';activeMarker.position.set(active.position.x,.035,active.position.z);

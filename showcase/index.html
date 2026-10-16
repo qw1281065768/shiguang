@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>还没来得及说的那句“我想要”</title>
-<link rel="stylesheet" href="gift.css?v=40">
+<link rel="stylesheet" href="gift.css?v=41">
 </head>
 <body>
 <div id="loading"><span class="loading-mark">拾光</span><p>正在打开那天下午…</p></div>
@@ -21,7 +21,7 @@
  <div class="prologue-progress" aria-hidden="true"><i class="active"></i><i></i></div>
  <button id="enterChapters" class="prologue-enter primary" type="button" hidden>进入记忆 <span>→</span></button>
 </section>
-<header><a class="wordmark" href="./cinematic_gift.html?v=40">拾光 <span>A GIFT TO MY YOUNGER SELF</span></a><div id="toolbar" hidden><span id="modeTag">亲自游玩</span><button id="modeSwitch" type="button">切换为自动体验</button><button id="sound" aria-label="打开声音">声音 关</button><button id="pause" aria-label="暂停">暂停</button><button id="chapterMenu" hidden>章节</button><button id="restart">重新开始</button></div></header>
+<header><a class="wordmark" href="./cinematic_gift.html?v=41">拾光 <span>A GIFT TO MY YOUNGER SELF</span></a><div id="toolbar" hidden><span id="modeTag">亲自游玩</span><button id="modeSwitch" type="button">切换为自动体验</button><button id="sound" aria-label="打开声音">声音 关</button><button id="pause" aria-label="暂停">暂停</button><button id="chapterMenu" hidden>章节</button><button id="restart">重新开始</button></div></header>
 <section id="intro" class="panel chapter-menu" aria-labelledby="menuTitle" hidden>
  <div class="menu-kicker"><span>拾光 / 记忆档案</span><i></i><span>CHAPTER SELECT</span></div>
  <h1 id="menuTitle">有些事没有变成故事。<br><span>它们只是一直留在原地。</span></h1>
@@ -42,9 +42,19 @@
      <button id="act2" class="chapter-launch secondary" type="button">查看第二幕 <span>→</span><small>尚未开放</small></button>
    </article>
  </div>
+ <button id="tryTray" class="tray-preview" type="button">先试试端餐 <span>约 20 秒 · 从赠餐之后开始</span> ↗</button>
  <p class="small menu-note">两种方式，同一个下午。随时可以暂停，或切换体验方式。</p>
 </section>
 <section id="hud" hidden aria-live="polite"><div id="chapter"></div><h2 id="objective"></h2><p id="instruction"></p><div id="progress" aria-label="故事进度"></div><button id="contextAction" class="primary" type="button" hidden>继续</button><button id="inspectNapkin" class="secondary" type="button" hidden>拿张纸巾</button><p id="modeNote"></p></section>
+<section id="trayPanel" hidden aria-labelledby="trayTitle">
+ <div class="tray-heading"><span>窗边 · 一小段路</span><h2 id="trayTitle">端稳这份热餐</h2></div>
+ <p id="trayStatus" role="status">左右拖动扶稳餐盘，也可以用 A / D。</p>
+ <div class="tray-level" aria-hidden="true"><i></i><b id="trayNeedle"></b></div>
+ <label for="traySteer">向左扶 <span>拖动扶稳 · 松手回中</span> 向右扶</label>
+ <input id="traySteer" type="range" min="-100" max="100" value="0" step="1" aria-label="左右扶稳餐盘">
+ <div class="tray-buttons"><button id="trayRest" class="secondary" type="button" aria-pressed="false">停一步</button><span>或按住空格停步</span><button id="trayAssist" type="button">帮我端过去</button></div>
+ <progress id="trayProgress" value="0" max="1" aria-label="到窗边的路程"></progress>
+</section>
 <div id="role" hidden><span id="roleDot"></span><span id="roleName"></span></div>
 <div id="targets"></div><div id="hover" hidden></div>
 <section id="subtitle" hidden aria-live="polite"><div id="speaker"></div><p id="line"></p><button id="readOn" hidden aria-label="读完了，继续">读完了 <span>空格 ↵</span></button></section>
@@ -56,5 +66,5 @@
 <section id="chapterPanel" class="modal" hidden><div class="chapter-sheet"><div class="eyebrow">拾光 / 记忆档案</div><h2>还留在这里的事</h2><div class="chapter-entry current"><span>01</span><div><strong>窗边的位置</strong><p>主题 / 善意</p></div><button id="again" class="secondary">重走这一幕</button></div><div class="chapter-entry pending"><span>02</span><div><strong>第二幕</strong><p>主题 / 勇气</p></div><button id="chapterAct2" class="secondary" type="button">查看</button></div><button id="backToScene" class="primary">回到窗边</button></div></section>
 <section id="chapterUnavailable" class="modal chapter-unavailable" hidden role="dialog" aria-modal="true" aria-labelledby="unavailableTitle"><div><div class="eyebrow">MEMORY 02 · 主题 / 勇气</div><h2 id="unavailableTitle">这一幕，<br>还在路上。</h2><p>它还没有准备好被重新讲述。等你愿意再走近一点，我们再见。</p><button id="closeUnavailable" class="primary" type="button">回到章节</button></div></section>
 <div id="fade"></div>
-<script src="./vendor/three-r161.js"></script><script src="./gift_navigation.js?v=40"></script><script src="./gift_world.js?v=40"></script><script src="./vendor/gltf-loader-r161.js"></script><script src="./gift_assets.js?v=40"></script><script src="./gift_game.js?v=40"></script><script src="./prologue.js?v=40"></script>
+<script src="./vendor/three-r161.js"></script><script src="./gift_navigation.js?v=41"></script><script src="./gift_world.js?v=41"></script><script src="./vendor/gltf-loader-r161.js"></script><script src="./gift_assets.js?v=41"></script><script src="./gift_balance.js?v=41"></script><script src="./gift_game.js?v=41"></script><script src="./prologue.js?v=41"></script>
 </body></html>

@@ -574,14 +574,15 @@
       const a=i*2.399,r=.14*Math.sqrt((i+.3)/13),x=Math.cos(a)*r,z=Math.sin(a)*r;
       const seed=sphere(.008,[x,.172+.09*Math.sqrt(1-(r/.18)**2),z],M.paper,burger,[1.2,.3,.65]);seed.rotation.y=a;seed.userData.foodDetail=true;
     }
-    const fries=group('Fries',[.29,.065,.10],meal);
+    const fries=props.fries=group('Fries',[.29,.065,.10],meal);
     round(.23,.22,.18,.025,[0,.12,0],M.red,fries);sign('小岛','',.13,.08,[0,.12,.087],fries,'#b65b47','#f5d7a1');
     for(let i=0;i<9;i++){
       const f=round(.034,.20+(i%3)*.028,.038,.008,[-.08+(i%5)*.039,.23, -.04+Math.floor(i/5)*.065],material(i%3===0?0xf2c35a:0xdba247,{roughness:.7}),fries);f.rotation.z=(i%3-1)*.10;
       // Uneven tips keep the fries from reading as identical yellow bars.
       sphere(.018,[f.position.x,f.position.y+.105+(i%3)*.014,f.position.z],material(0xf7d67a,{roughness:.72}),fries,[.8,.35,.8]);
     }
-    const drink=group('Drink',[.29,.052,-.19],meal);
+    const drink=props.drink=group('Drink',[.29,.052,-.19],meal);
+    drink.userData.trayHome={x:.29,y:.052,z:-.19};
     cylinder(.11,.077,.29,[0,.15,0],enamel,drink);
     cylinder(.099,.089,.10,[0,.15,0],brandRed,drink);
     const drinkBrand=plane(.12,.055,[0,.15,.104],textTexture('小岛','', '#9f302a','#fff0d6'),drink);
@@ -863,12 +864,37 @@
         if(previous!==actor&&previous.userData.held===object){previous.userData.held=null;pose(previous,['sit','sitEat'].includes(previous.userData.pose)?'sit':'idle');}
       });
       if(object===meal||object.userData.isMeal){
+        resetTrayBalance(object);
         actor.userData.carrySocket.add(object);object.position.set(0,0,0);object.rotation.set(0,0,0);
       }else{
         actor.userData.hand.add(object);object.position.set(object.userData.isCoins?-.018:0,object.userData.isFood?.016:-.009,object.userData.isNapkin?.005:object.userData.isFood||object.userData.isCoins?.012:.014);object.rotation.set(object.userData.isNapkin?-Math.PI/2:object.userData.isFood||object.userData.isCoins?0:.45,0,object.userData.isNapkin?.1:0);
       }
       const seated=['sit','sitEat'].includes(actor.userData.pose);
       object.scale.copy(heldScale).divideScalar(actor.scale.x);object.visible=true;actor.userData.held=object;pose(actor,seated?(object.userData.isFood?'sitEat':'sit'):'reach');
+    }
+    // Balance is a real transform on the held tray, independent of the body's
+    // breathing/step motion. Contents use tray-local units, so reparenting never
+    // changes the meal's existing world scale.
+    function setTrayBalance(actor,{roll=0,pitch=0,slip=0}={}) {
+      if(typeof actor==='string')actor=actors[actor];
+      const held=actor?.userData.held;
+      if(!held||!(held===meal||held.userData.isMeal))return false;
+      const bounded=(value,limit)=>T.MathUtils.clamp(Number.isFinite(value)?value:0,-limit,limit);
+      roll=bounded(roll,.24);pitch=bounded(pitch,.12);slip=bounded(slip,.04);
+      held.rotation.set(pitch,0,roll);
+      const cup=held===meal?drink:held.getObjectByName('Drink');
+      if(cup){
+        const home=cup.userData.trayHome||{x:.29,y:.052,z:-.19};
+        cup.position.set(home.x+slip,home.y,home.z);
+        cup.rotation.set(-pitch*.12,0,-roll*.16);
+      }
+      return true;
+    }
+    function resetTrayBalance(object){
+      if(!object||!(object===meal||object.userData.isMeal))return;
+      object.rotation.set(0,0,0);
+      const cup=object===meal?drink:object.getObjectByName('Drink');
+      if(cup){const home=cup.userData.trayHome||{x:.29,y:.052,z:-.19};cup.position.set(home.x,home.y,home.z);cup.rotation.set(0,0,0);}
     }
     function bite(food=burger) {
       if(!food||food.userData.bitten)return;food.userData.bitten=true;
@@ -887,6 +913,7 @@
     }
     function release(object) {
       if(!object)return;
+      resetTrayBalance(object);
       scene.attach(object);
       Object.values(actors).forEach(a=>{if(a.userData.held===object){a.userData.held=null;pose(a,['sit','sitEat'].includes(a.userData.pose)?'sit':'idle');}});
     }
@@ -974,10 +1001,20 @@
         const rightSpread=p==='wipe'?-1.48+Math.sin(time*3.2)*.035:eating?(p==='firstBite'?T.MathUtils.lerp(-.24,-1.56,biteLift):-1.56):['inspect','hesitate','countCoins'].includes(p)?-.24:carrying?.24:p==='happy'?.2:-.045;
         d.arms[0].rotation.z=T.MathUtils.lerp(d.arms[0].rotation.z,leftSpread,blend);
         d.arms[1].rotation.z=T.MathUtils.lerp(d.arms[1].rotation.z,rightSpread,blend);
+        // Finalize the torso before converting tray contacts into body space.
+        // Otherwise walking/leaning would leave a one-frame gap at the hands.
+        d.body.position.y=T.MathUtils.lerp(d.body.position.y,(seated?-.23:0)+(walking?Math.abs(Math.sin(time*9))*.018:Math.sin(t*1.8)*.004),blend);
+        if(['inspect','hesitate','countCoins','confirm','firstBite'].includes(p))d.body.rotation.x=T.MathUtils.lerp(d.body.rotation.x,p==='countCoins'?.065:p==='hesitate'?.025:0,blend*.55);
         if(carrying){
-          const z=d.carrySocket.position.z-.075/actor.scale.x;
-          aimHand(d,0,new T.Vector3(-.245,1.006,z),blend);
-          aimHand(d,1,new T.Vector3(.245,1.006,z),blend);
+          d.carrySocket.quaternion.copy(d.body.quaternion).invert();
+          d.body.updateWorldMatrix(true,false);d.held.updateWorldMatrix(true,false);
+          // Fingers support the inside of both side rails near the child.
+          // Follow the actual model transform, including player-controlled
+          // roll/pitch, rather than two fixed points floating below the tray.
+          for(let index=0;index<2;index++){
+            const contact=d.held.localToWorld(new T.Vector3(index?.52:-.52,.012,-.24));
+            d.body.worldToLocal(contact);aimHand(d,index,contact,1);
+          }
         }else if(d.held?.userData.isFood){
           const lift=p==='firstBite'?biteLift:eating?.92:.12;
           aimHand(d,1,new T.Vector3(.042,1.10+lift*.16,.30-lift*.052),blend);
@@ -992,8 +1029,6 @@
           const contact=carrying||!!d.held&&(index===1||eating);
           digit.rotation.x=T.MathUtils.lerp(digit.rotation.x,contact?-.52-i*.018:-.12,blend);
         }));
-        d.body.position.y=T.MathUtils.lerp(d.body.position.y,(seated?-.23:0)+(walking?Math.abs(Math.sin(time*9))*.018:Math.sin(t*1.8)*.004),blend);
-        if(['inspect','hesitate','countCoins','confirm','firstBite'].includes(p))d.body.rotation.x=T.MathUtils.lerp(d.body.rotation.x,p==='countCoins'?.065:p==='hesitate'?.025:0,blend*.55);
         let pitch=p==='rummage'?.27:p==='shy'?.22:p==='wipe'?.08:eating?.10:p==='happy'?-.045:['inspect','hesitate','countCoins'].includes(p)?.25:0;
         let yaw=p==='hesitate'?Math.sin(Math.min(age,2.4)*1.6)*.08:0;
         if(d.gaze){
@@ -1029,7 +1064,6 @@
           d.held.quaternion.copy(wrist.invert()).multiply(tilt);
           d.held.position.set(-.036,-.009,.022);
         }
-        if(carrying)d.carrySocket.quaternion.copy(d.body.quaternion).invert();
         if(d.ikTargets)d.ikTargets.forEach((target,index)=>{if(!d.ikUsed[index])d.ikTargets[index]=null;});
       });
       const opened=!lid.visible||lid.position.y>.13||Math.abs(lid.rotation.x)+Math.abs(lid.rotation.z)>.25;
@@ -1038,6 +1072,6 @@
       rain.children.forEach((drop,i)=>{drop.position.y=((drop.userData.baseY-time*(.025+(i%3)*.011))%1.98+1.98)%1.98;});
     }
     pose(actors.child,'shy');
-    return {actors,props,colliders,bounds:{minX:-4.05,maxX:4.05,minZ:-1.75,maxZ:3.65},floor,update,pose,lookAt,hold,release,bite,stowCoupon,setMood,recordStaffMeal,setView};
+    return {actors,props,colliders,bounds:{minX:-4.05,maxX:4.05,minZ:-1.75,maxZ:3.65},floor,update,pose,lookAt,hold,release,setTrayBalance,bite,stowCoupon,setMood,recordStaffMeal,setView};
   };
 })();
